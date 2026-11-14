@@ -37,7 +37,7 @@ export function quarterRadarOf(ctx, months) {
     return {
       staff: p.name,
       sales: avgOf(ms.map((m) => m.sales)), avgTicket: avgOf(ms.map((m) => m.avgTicket)),
-      oldReturn: avgOf(ms.map((m) => val(m.oldReturn))), newReturn: avgOf(ms.map((m) => val(m.newReturn))),
+      returnRate: avgOf(ms.map((m) => val(m.returnRate))),
       productRatio: avgOf(ms.map((m) => m.productRatio)),
     };
   });

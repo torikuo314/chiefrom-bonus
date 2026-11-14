@@ -54,7 +54,7 @@ async function make() {
       btn.textContent = `產生中… ${i + 1}/${names.length}`;
       const data = buildStatement(ctx.db['月業績'], name, month, params, ctx.db['預支'], {
         cur: metricsOf(ctx, name, month), prev: metricsOf(ctx, name, prevMonthOf(month)),
-        radar: radar[name], praise: praiseOf(ctx, name, [month]),
+        radar: radar[name], praise: praiseOf(ctx, name, [month]), returnDays: ctx.settings.metric.returnDays,
       });
       results.push({ name, ...(await renderSheet(data)) });
     }

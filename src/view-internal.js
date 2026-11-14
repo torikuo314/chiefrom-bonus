@@ -13,8 +13,7 @@ export const CORE = [
   { key: 'sales', label: '個人業績', kind: 'money' },
   { key: 'avgTicket', label: '客單價', kind: 'money' },
   { key: 'customers', label: '服務客數', kind: 'count' },
-  { key: 'oldReturn', label: '老客準時回店率', kind: 'pct' },
-  { key: 'newReturn', label: '新客回店率', kind: 'pct' },
+  { key: 'returnRate', label: '顧客回流率', kind: 'pct' },
   { key: 'productRatio', label: '商品推薦佔比', kind: 'pct' },
   { key: 'addonRate', label: '加購服務率', kind: 'pct' },
 ];
@@ -76,13 +75,12 @@ function render() {
         <td>${st.mentions ? `${st.avgStars != null ? st.avgStars.toFixed(1) + ' 星' : '未評分'}<span class="hint">（${st.mentions} 份）</span>` : '<span class="hint">—</span>'}</td>
         <td>${monthly.has(p.name) ? fmt(monthly.get(p.name)['當月獎金']) : '<span class="hint">—</span>'}</td></tr>`;
     }).join('')}</tbody>`;
-  const n0 = list.find((m) => m.newReturn?.window)?.newReturn.window;
-  const o0 = list.find((m) => m.oldReturn?.baseMonth)?.oldReturn.baseMonth;
-  $('#in-compare-note').textContent = `老客準時回店率以 ${o0 || '—'} 的消費為基準；新客回店率統計 ${n0 ? `${n0.from}～${n0.to}` : '—'} 接手的新客。＊樣本數少於 ${ctx.settings.metric.minSample}，僅供參考。⚠ 表示有指標連續 3 個月下滑（滑鼠移上去可看是哪幾項）。`;
+  const o0 = list.find((m) => m.returnRate?.baseMonth)?.returnRate.baseMonth;
+  $('#in-compare-note').textContent = `顧客回流率：${o0 || '—'} 服務的客人（含新客），${ctx.settings.metric.returnDays} 天內再回店（任何養護師）的比例。＊樣本數少於 ${ctx.settings.metric.minSample}，僅供參考。⚠ 表示有指標連續 3 個月下滑（滑鼠移上去可看是哪幾項）。`;
 
   // 雷達分數（內部參考）
-  $('#in-radar').innerHTML = `<thead><tr><th>養護師</th><th>產能</th><th>客單</th><th>留客</th><th>新客留存</th><th>推薦</th></tr></thead>
-    <tbody>${staff.map((p) => `<tr><td>${esc(p.name)}</td>${['sales', 'avgTicket', 'oldReturn', 'newReturn', 'productRatio'].map((k) => `<td>${radar[p.name][k] ?? '<span class="hint">—</span>'}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  $('#in-radar').innerHTML = `<thead><tr><th>養護師</th><th>產能</th><th>客單</th><th>回流</th><th>推薦</th></tr></thead>
+    <tbody>${staff.map((p) => `<tr><td>${esc(p.name)}</td>${['sales', 'avgTicket', 'returnRate', 'productRatio'].map((k) => `<td>${radar[p.name][k] ?? '<span class="hint">—</span>'}</td>`).join('')}</tr>`).join('')}</tbody>`;
 
   // 2. 下滑警示
   const warns = [];

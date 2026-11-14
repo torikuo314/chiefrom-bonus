@@ -21,8 +21,7 @@ export function lastMonths(month, count) {
 export const CARD_DEFS = [
   { key: 'avgTicket', label: '客單價', kind: 'money', unit: '元' },
   { key: 'customers', label: '服務客數', kind: 'count', unit: '人' },
-  { key: 'oldReturn', label: '老客準時回店率', kind: 'pct' },
-  { key: 'newReturn', label: '新客回店率', kind: 'pct' },
+  { key: 'returnRate', label: '顧客回流率', kind: 'pct' },
   { key: 'productRatio', label: '商品推薦佔比', kind: 'pct' },
   { key: 'addonRate', label: '加購服務率', kind: 'pct' },
 ];
@@ -77,9 +76,7 @@ export function buildStatement(monthlyRows, name, month, params, advanceRows = [
   const scaleMax = Math.max(params.T2 * 1.15, sales * 1.05);
   const { cur, prev, radar, praise } = extra;
   const cards = CARD_DEFS.map((d) => {
-    const note = d.key === 'newReturn' && cur?.newReturn?.window
-      ? `統計對象：${Number(cur.newReturn.window.from.slice(5))} 月–${Number(cur.newReturn.window.to.slice(5))} 月接手的新客`
-      : d.key === 'oldReturn' && cur?.oldReturn?.baseMonth ? `以 ${Number(cur.oldReturn.baseMonth.slice(5))} 月的消費為基準` : '';
+    const note = d.key === 'returnRate' && cur?.returnRate?.baseMonth ? `${Number(cur.returnRate.baseMonth.slice(5))} 月服務的客人，${extra.returnDays || 60} 天內再回店的比例` : '';
     return buildCard(d, cur, prev, { note });
   });
   return {

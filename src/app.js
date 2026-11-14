@@ -100,7 +100,7 @@ const settingsView = {
     $('#set-env').value = c.settings.envKeywords.join(', ');
     renderParams();
     const ms = c.settings.metric;
-    $('#ms-old').value = ms.oldReturnDays; $('#ms-new').value = ms.newReturnDays; $('#ms-win').value = ms.newWindowMonths; $('#ms-min').value = ms.minSample;
+    $('#ms-old').value = ms.returnDays; $('#ms-min').value = ms.minSample;
     $('#ms-cat').value = Object.entries(c.settings.categoryMap.bracket).map(([k, v]) => `${k}=${v}`).join('\n');
     $('#map-table').innerHTML = `<thead><tr><th>系統欄位</th><th>神美欄位</th></tr></thead><tbody>${
       ORDER_FIELDS.map((f) => `<tr><td>${esc(f.label)}</td><td>${esc(c.settings.orderMapping[f.key] || '（不使用）')}</td></tr>`).join('')}</tbody>`;
@@ -205,7 +205,7 @@ $('#p-add').addEventListener('click', async () => {
 });
 
 $('#ms-save').addEventListener('click', async () => {
-  const metric = { oldReturnDays: num($('#ms-old').value), newReturnDays: num($('#ms-new').value), newWindowMonths: num($('#ms-win').value), minSample: num($('#ms-min').value) };
+  const metric = { ...ctx.settings.metric, returnDays: num($('#ms-old').value), minSample: num($('#ms-min').value) };
   if (Object.values(metric).some((v) => !(v >= 1))) return alert('請填寫大於 0 的數字');
   const bracket = Object.fromEntries($('#ms-cat').value.split('\n').map((l) => l.split('=').map((x) => x.trim())).filter(([k, v]) => k && v));
   const categoryMap = { ...ctx.settings.categoryMap, bracket };

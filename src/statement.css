@@ -109,9 +109,9 @@
 .mr-progress .st-bonus b { font-size: 20px; }
 .mr-progress .st-adv b { font-size: 15px; }
 
-.mr-cards { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
-.mr-card { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); min-height: 74px; }
-.mr-card:not(:nth-child(3n+1)) { padding-left: 14px; border-left: 1px solid var(--line); }
+.mr-cards { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.mr-card { padding: 10px 10px 10px 0; min-height: 96px; }
+.mr-card:not(:first-child) { padding-left: 12px; border-left: 1px solid var(--line); }
 .mr-card span { display: block; font-size: 12px; color: var(--ink-soft); letter-spacing: .1em; font-weight: 500; }
 .mr-card b { display: block; font: 600 22px/1.2 var(--font-serif); }
 .mr-card b.pending { font: 500 15px/1.9 var(--font-sans); color: var(--ink-soft); }

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  classify, buildIndex, staffMonthMetrics, oldReturnRate, newReturnRate,
+  classify, buildIndex, staffMonthMetrics, returnRate, newReturnRate,
   radarScores, declining, compare, lastDayOf, addMonths, addDays, daysBetween,
 } from '../src/metrics.js';
 
@@ -43,7 +43,7 @@ test('老客準時回店：60 天內／61 天／回到別人／手機空白', ()
     R('2099-08-05', 'c4', '甲甲', 100), R('2099-08-05', 'c4', '甲甲', 50),   // 同日兩張單：都算基準，但同日不算「回店」
     R('2099-08-20', 'c5', '乙乙', 100),                                       // 別人的客人 → 不列入甲甲基準
   ];
-  const r = oldReturnRate(buildIndex(rows), '甲甲', '2099-10');
+  const r = returnRate(buildIndex(rows), '甲甲', '2099-10');
   assert.equal(r.baseMonth, '2099-08');
   assert.equal(r.den, 5);
   assert.equal(r.num, 1);
@@ -52,7 +52,7 @@ test('老客準時回店：60 天內／61 天／回到別人／手機空白', ()
 
 test('老客準時回店：資料不足時顯示資料累積中', () => {
   const rows = [R('2099-09-01', 'c1', '甲甲', 100)];
-  const r = oldReturnRate(buildIndex(rows), '甲甲', '2099-10');
+  const r = returnRate(buildIndex(rows), '甲甲', '2099-10');
   assert.equal(r.pending, true);
   assert.equal(r.value, null);
 });
@@ -107,15 +107,16 @@ test('核心指標：業績含擔任助理、客單價／客數只看設計師�
 
 test('雷達分數：50 × 個人 ÷ 店內平均，上限 100，只用納入比較者算平均', () => {
   const list = [
-    { staff: '甲甲', sales: 200000, avgTicket: 4000, oldReturn: { value: 0.6 }, newReturn: { value: null, pending: true }, productRatio: 0.1 },
-    { staff: '乙乙', sales: 100000, avgTicket: 2000, oldReturn: { value: 0.3 }, newReturn: { value: 0.5 }, productRatio: 0 },
-    { staff: '老闆', sales: 900000, avgTicket: 9000, oldReturn: { value: 0.9 }, newReturn: { value: 0.9 }, productRatio: 0.9 },
+    { staff: '甲甲', sales: 200000, avgTicket: 4000, returnRate: { value: null, pending: true }, productRatio: 0.1 },
+    { staff: '乙乙', sales: 100000, avgTicket: 2000, returnRate: { value: 0.5 }, productRatio: 0 },
+    { staff: '老闆', sales: 900000, avgTicket: 9000, returnRate: { value: 0.9 }, productRatio: 0.9 },
   ];
   const s = radarScores(list, ['甲甲', '乙乙']);
   assert.equal(s['甲甲'].sales, 67);     // 50 × 200000 / 150000
   assert.equal(s['乙乙'].sales, 33);
-  assert.equal(s['甲甲'].newReturn, null); // 資料累積中
-  assert.equal(s['乙乙'].newReturn, 50);
+  assert.equal(s['甲甲'].returnRate, null); // 資料累積中
+  assert.equal(s['乙乙'].returnRate, 50);
+  assert.deepEqual(Object.keys(s['甲甲']), ['sales', 'avgTicket', 'returnRate', 'productRatio']); // 4 軸
   assert.equal(s['甲甲'].productRatio, 100);
   assert.equal(s['乙乙'].productRatio, 0);
   assert.equal(s['老闆'].sales, 100);     // 上限 100

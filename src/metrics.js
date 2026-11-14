@@ -5,8 +5,8 @@
 //     amount: 業績, assist: 項目協助 }
 
 export const DEFAULT_METRIC_SETTINGS = Object.freeze({
-  oldReturnDays: 60,     // 老客準時回店天數
-  newReturnDays: 75,     // 新客回店天數
+  returnDays: 60,        // 顧客回流天數（使用者決定：新舊客合併為一項，60 天）
+  newReturnDays: 75,     // （保留：新客回店率，目前報表未使用）
   newWindowMonths: 3,    // 新客基準期間長度（月）
   minSample: 5,          // 基準人數少於此值加註「樣本數少」
   excludeStores: ['夥伴店'], // 不計入門店養護師指標的店家
@@ -112,8 +112,7 @@ export function staffMonthMetrics(index, staff, month, settings = DEFAULT_METRIC
     sales: sum(inMonth),                                                   // 1. 個人業績
     avgTicket: designerOrders.size ? designerSales / designerOrders.size : null, // 2. 客單價
     customers: new Set(designer.map((r) => r.customer).filter(Boolean)).size,    // 3. 服務客數
-    oldReturn: oldReturnRate(index, staff, month, settings),                // 4.
-    newReturn: newReturnRate(index, staff, month, settings),                // 5.
+    returnRate: returnRate(index, staff, month, settings),                  // 4. 顧客回流率（新舊客合併）
     productRatio: designerSales ? sum(designer.filter((r) => r.type === '商品')) / designerSales : null, // 6.
     addonRate: ratio(addonOrders.size, designerOrders.size, settings),      // 7.
     orders: designerOrders.size,
@@ -126,13 +125,13 @@ export function staffMonthMetrics(index, staff, month, settings = DEFAULT_METRIC
 }
 
 /**
- * 4. 老客準時回店率
- * 基準月 B：「月底＋N 天」不晚於 M 月底的最近一個月份（約 M−2）。
- * 基準：B 月中 X 擔任設計師的消費（以訂單計，需有客人識別）。
+ * 4. 顧客回流率（使用者決定：原「老客準時回店率」與「新客回店率」合併為一項）
+ * 基準月 B：「月底＋N 天」不晚於 M 月底的最近一個月份（N＝60 時約為 M−2）。
+ * 基準：B 月中 X 擔任設計師的所有消費（含新客第一次，以訂單計，需有客人識別）。
  * 分子：其中客人下一次到店（任何養護師）間隔 ≤ N 天的筆數。
  */
-export function oldReturnRate(index, staff, month, settings = DEFAULT_METRIC_SETTINGS) {
-  const N = settings.oldReturnDays;
+export function returnRate(index, staff, month, settings = DEFAULT_METRIC_SETTINGS) {
+  const N = settings.returnDays;
   const end = lastDayOf(month);
   let base = month;
   while (addDays(lastDayOf(base), N) > end) base = addMonths(base, -1);
@@ -180,8 +179,7 @@ export const valueOf = (m) => (m && typeof m === 'object' ? m.value : m);
 export const RADAR_AXES = [
   { key: 'sales', label: '產能' },
   { key: 'avgTicket', label: '客單' },
-  { key: 'oldReturn', label: '留客' },
-  { key: 'newReturn', label: '新客留存' },
+  { key: 'returnRate', label: '回流' },
   { key: 'productRatio', label: '推薦' },
 ];
 
