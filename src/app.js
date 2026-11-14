@@ -12,6 +12,7 @@ import * as advanceView from './view-advance.js';
 import * as statementView from './view-statement.js';
 import * as quarterView from './view-quarter.js';
 import * as surveyView from './view-survey.js';
+import * as internalView from './view-internal.js';
 
 const SHEETS = ['養護師', '設定', '參數', '月業績', '季結算', '交易明細', '預支', '問卷'];
 
@@ -55,7 +56,7 @@ export const ctx = {
     ctx.view = view;
     $$('.view').forEach((el) => (el.hidden = el.id !== `view-${view}`));
     $$('#nav a[data-view]').forEach((a) => a.classList.toggle('on', a.dataset.view === view || (view === 'detail' && a.dataset.view === 'month')));
-    ({ month: monthView, detail: monthView, import: importView, survey: surveyView, advance: advanceView, statement: statementView, quarter: quarterView, settings: settingsView }[view])
+    ({ month: monthView, detail: monthView, import: importView, survey: surveyView, internal: internalView, advance: advanceView, statement: statementView, quarter: quarterView, settings: settingsView }[view])
       .show(ctx, view === 'detail' ? { detail: arg } : arg);
     window.scrollTo(0, 0);
   },
@@ -84,7 +85,7 @@ async function start() {
 }
 
 $$('#nav a[data-view]').forEach((a) => a.addEventListener('click', () => ctx.db && ctx.go(a.dataset.view)));
-[importView, surveyView, monthView, advanceView, statementView, quarterView].forEach((v) => v.init?.(ctx));
+[importView, surveyView, internalView, monthView, advanceView, statementView, quarterView].forEach((v) => v.init?.(ctx));
 
 // ---------------- 設定頁 ----------------
 const settingsView = {
@@ -98,6 +99,9 @@ const settingsView = {
     $('#set-excluded').value = c.settings.excluded.join(', ');
     $('#set-env').value = c.settings.envKeywords.join(', ');
     renderParams();
+    const ms = c.settings.metric;
+    $('#ms-old').value = ms.oldReturnDays; $('#ms-new').value = ms.newReturnDays; $('#ms-win').value = ms.newWindowMonths; $('#ms-min').value = ms.minSample;
+    $('#ms-cat').value = Object.entries(c.settings.categoryMap.bracket).map(([k, v]) => `${k}=${v}`).join('\n');
     $('#map-table').innerHTML = `<thead><tr><th>系統欄位</th><th>神美欄位</th></tr></thead><tbody>${
       ORDER_FIELDS.map((f) => `<tr><td>${esc(f.label)}</td><td>${esc(c.settings.orderMapping[f.key] || '（不使用）')}</td></tr>`).join('')}</tbody>`;
   },
@@ -198,6 +202,18 @@ $('#p-add').addEventListener('click', async () => {
     $('#p-msg').textContent = `已新增 ${month} 版本，並重算 ${month} 之後的月業績獎金。`;
     renderParams();
   } catch (e) { alert('新增失敗：' + e.message); }
+});
+
+$('#ms-save').addEventListener('click', async () => {
+  const metric = { oldReturnDays: num($('#ms-old').value), newReturnDays: num($('#ms-new').value), newWindowMonths: num($('#ms-win').value), minSample: num($('#ms-min').value) };
+  if (Object.values(metric).some((v) => !(v >= 1))) return alert('請填寫大於 0 的數字');
+  const bracket = Object.fromEntries($('#ms-cat').value.split('\n').map((l) => l.split('=').map((x) => x.trim())).filter(([k, v]) => k && v));
+  const categoryMap = { ...ctx.settings.categoryMap, bracket };
+  try {
+    await ctx.write([{ action: 'upsert', payload: { sheet: '設定', keys: ['項目'], rows: [{ 項目: '指標設定', 值: JSON.stringify(metric) }, { 項目: '類別對照', 值: JSON.stringify(categoryMap) }] } }],
+      { 動作: '修改設定', 內容: `指標設定 ${JSON.stringify(metric)}；類別對照 ${JSON.stringify(bracket)}` });
+    alert('已儲存');
+  } catch (e) { alert('儲存失敗：' + e.message); }
 });
 
 $('#map-reset').addEventListener('click', async () => {

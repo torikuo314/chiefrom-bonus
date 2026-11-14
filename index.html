@@ -26,6 +26,7 @@
     <a data-view="statement">產出明細</a>
     <a data-view="advance">預支</a>
     <a data-view="quarter">季結算</a>
+    <a data-view="internal">內部版</a>
     <a data-view="settings">設定</a>
   </nav>
 </header>
@@ -229,6 +230,54 @@
     <div id="q-stage" aria-hidden="true"></div>
   </div>
 
+  <!-- 公司內部版 -->
+  <div id="view-internal" class="view" hidden>
+    <section class="card">
+      <div class="row-between">
+        <h2>公司內部版 <span class="hint">只有你看得到，不會出現在任何給養護師的報表</span></h2>
+        <label class="inline">月份 <input type="month" id="in-month"></label>
+      </div>
+      <p id="in-empty" class="hint" hidden>尚未匯入神美訂單列表。</p>
+    </section>
+    <div id="in-body">
+      <section class="card">
+        <h3>全員比較</h3>
+        <table id="in-compare"></table>
+        <p id="in-compare-note" class="hint"></p>
+        <details><summary class="hint">雷達分數（50＝店內平均）</summary><table id="in-radar"></table></details>
+      </section>
+      <section class="card">
+        <h3>連續 3 個月下滑警示</h3>
+        <ul id="in-warn"></ul>
+      </section>
+      <section class="card">
+        <div class="row-between">
+          <h3>近 12 個月趨勢</h3>
+          <label class="inline">指標 <select id="in-trend"></select></label>
+        </div>
+        <table id="in-trend-table"></table>
+      </section>
+      <section class="card">
+        <h3>當季獎金成本預估</h3>
+        <table id="in-cost"></table>
+        <p id="in-cost-note" class="hint"></p>
+      </section>
+      <section class="card">
+        <h3>助理紀錄（本月）</h3>
+        <table id="in-assist"></table>
+      </section>
+      <section class="card">
+        <h3>負評（本月）</h3>
+        <table id="in-neg"></table>
+      </section>
+      <section class="card">
+        <h3>環境類建議</h3>
+        <p class="hint">不歸屬個人。處理完後打勾，會記入操作紀錄。</p>
+        <table id="in-env"></table>
+      </section>
+    </div>
+  </div>
+
   <!-- 設定 -->
   <div id="view-settings" class="view" hidden>
     <section class="card">
@@ -263,6 +312,18 @@
       </div>
       <button id="p-add">新增版本</button>
       <p id="p-msg" class="hint"></p>
+    </section>
+    <section class="card">
+      <h2>指標設定</h2>
+      <div class="grid2">
+        <label>老客準時回店天數<input id="ms-old" type="number" min="1"></label>
+        <label>新客回店天數<input id="ms-new" type="number" min="1"></label>
+        <label>新客統計期間（月）<input id="ms-win" type="number" min="1"></label>
+        <label>樣本數少於幾人時加註「僅供參考」<input id="ms-min" type="number" min="1"></label>
+      </div>
+      <label>項目類別對照（每行一個：【】內的文字=報表類別；商品、附加服務→加購服務、方案開頭→方案為固定規則）<textarea id="ms-cat" rows="5"></textarea></label>
+      <p class="hint">類別對照在匯入時套用；修改後請重新匯入受影響的月份。</p>
+      <button id="ms-save" class="primary">儲存指標設定</button>
     </section>
     <section class="card">
       <h2>神美訂單欄位對應</h2>
