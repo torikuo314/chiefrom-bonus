@@ -73,38 +73,6 @@ const fileName = (name, ext) => `${month}_${name}_個人經營月報.${ext}`;
 // ---------------- 月報版面 ----------------
 const wan = (v) => (v >= 10000 ? `${+(v / 10000).toFixed(1)}萬` : fmt(v));
 
-/** 指標卡上的近 6 個月小走勢：先放 canvas，插入頁面後再畫（html2canvas 對 canvas 最穩定）。 */
-const sparkline = (values) => (values.filter((x) => x != null).length >= 2
-  ? `<canvas class="mr-spark" width="224" height="60" data-spark='${JSON.stringify(values)}'></canvas>` : '<div class="mr-spark-empty"></div>');
-
-function drawSparks(root) {
-  root.querySelectorAll('canvas.mr-spark').forEach((cv) => {
-    const values = JSON.parse(cv.dataset.spark);
-    const c = cv.getContext('2d');
-    c.scale(2, 2);
-    const W = 112, H = 30, pad = 4;
-    const pts = values.map((v, i) => [i, v]).filter(([, v]) => v != null);
-    const vs = pts.map(([, v]) => v);
-    const min = Math.min(...vs), max = Math.max(...vs);
-    const x = (i) => pad + (i * (W - pad * 2)) / (values.length - 1);
-    const y = (v) => (max === min ? H / 2 : H - pad - ((v - min) * (H - pad * 2)) / (max - min));
-    const color = css('--chart-1');
-    c.beginPath();
-    c.moveTo(x(pts[0][0]), H);
-    pts.forEach(([i, v]) => c.lineTo(x(i), y(v)));
-    c.lineTo(x(pts.at(-1)[0]), H);
-    c.closePath();
-    c.fillStyle = 'rgba(94,116,89,.13)';
-    c.fill();
-    c.beginPath();
-    pts.forEach(([i, v], k) => (k ? c.lineTo(x(i), y(v)) : c.moveTo(x(i), y(v))));
-    c.strokeStyle = color; c.lineWidth = 1.8; c.lineJoin = 'round'; c.lineCap = 'round';
-    c.stroke();
-    const [li, lv] = pts.at(-1);
-    c.beginPath(); c.arc(x(li), y(lv), 3, 0, Math.PI * 2); c.fillStyle = color; c.fill();
-  });
-}
-
 function sheetHtml(d) {
   const [y, m] = d.month.split('-');
   return `
@@ -136,16 +104,15 @@ function sheetHtml(d) {
       <span>${c.label}</span>
       <b class="${c.pending ? 'pending' : ''}">${esc(c.value)}${c.unit ? `<small> ${c.unit}</small>` : ''}${c.small ? '<sup>*</sup>' : ''}</b>
       <em class="${c.diff ? c.diff.dir : ''}">${c.diff ? esc(c.diff.text) : '&nbsp;'}</em>
-      ${sparkline(c.spark)}
       <div class="mr-tags">${c.best ? '<span class="mr-best">🎉 個人新高</span>' : ''}${c.rank ? `<span class="mr-rank">店內第 ${c.rank} 名</span>` : ''}</div>
       ${c.note ? `<i>${esc(c.note)}</i>` : ''}
     </div>`).join('')}
   </section>
-  <p class="mr-foot-note">↑↓ 為與上月比較・小線圖為近 6 個月走勢${d.smallSampleNote ? '・* 樣本數少，僅供參考' : ''}</p>
+  <p class="mr-foot-note">↑↓ 為與上月比較${d.smallSampleNote ? '・* 樣本數少，僅供參考' : ''}</p>
 
   <section class="st-chart mr-trend">
     <h2>近 6 個月業績</h2>
-    <canvas class="c-trend" width="666" height="${d.praise ? 240 : 430}"></canvas>
+    <canvas class="c-trend" width="666" height="${d.praise ? 150 : 190}"></canvas>
   </section>
 
   ${d.praise ? `<section class="mr-praise">
@@ -164,7 +131,6 @@ async function renderSheet(d) {
   const ink = css('--ink-soft');
   const font = { family: css('--font-sans') || 'sans-serif', size: 13 };
   try {
-    drawSparks(sheet);
     const last = d.trend.length - 1;
     const canvas = sheet.querySelector('.c-trend');
     canvas.style.height = `${canvas.height}px`;
@@ -175,8 +141,8 @@ async function renderSheet(d) {
         labels: d.trend.map((t) => `${Number(t.month.slice(5))} 月`),
         datasets: [{
           data: d.trend.map((t) => t.sales),
-          backgroundColor: d.trend.map((_, i) => (i === last ? css('--chart-1') : '#c9d4c4')),
-          borderRadius: { topLeft: 6, topRight: 6 }, borderSkipped: 'bottom', barPercentage: 0.62, categoryPercentage: 0.9,
+          backgroundColor: d.trend.map((_, i) => (i === last ? css('--accent') : '#e4ddd1')),
+          borderRadius: { topLeft: 5, topRight: 5 }, borderSkipped: 'bottom', barPercentage: 0.5, categoryPercentage: 0.9,
         }],
       },
       options: {
@@ -210,7 +176,7 @@ async function renderSheet(d) {
             if (v == null) return;
             const text = wan(v);
             c.save();
-            c.font = `${i === last ? 700 : 500} ${i === last ? 14 : 12}px ${font.family}`;
+            c.font = `${i === last ? 700 : 500} ${i === last ? 13 : 11}px ${font.family}`;
             c.textAlign = 'center'; c.textBaseline = 'bottom';
             const w = c.measureText(text).width + 8;
             c.fillStyle = css('--surface');
