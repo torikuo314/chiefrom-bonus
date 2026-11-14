@@ -103,12 +103,12 @@ function sheetHtml(d) {
     ${d.cards.map((c) => `<div class="mr-card${c.best ? ' is-best' : ''}">
       <span>${c.label}</span>
       <b class="${c.pending ? 'pending' : ''}">${esc(c.value)}${c.unit ? `<small> ${c.unit}</small>` : ''}${c.small ? '<sup>*</sup>' : ''}</b>
-      <em class="${c.diff ? c.diff.dir : ''}">${c.diff ? esc(c.diff.text) : '&nbsp;'}</em>
-      <div class="mr-tags">${c.best ? '<span class="mr-best">🎉 個人新高</span>' : ''}${c.rank ? `<span class="mr-rank">店內第 ${c.rank} 名</span>` : ''}</div>
+      <em class="mr-diff">${c.diff ? `${c.diff.dir === 'flat' ? '' : `<span class="mr-arrow ${c.diff.dir}">${c.diff.dir === 'up' ? '↑' : '↓'}</span>`}${esc(c.diff.text)}` : '&nbsp;'}</em>
+      <div class="mr-tags">${c.best ? '<span class="mr-best">🎉 個人新高</span>' : ''}${c.rank ? `<span class="mr-rank">${['', '🥇', '🥈', '🥉'][c.rank]} 店內第 ${c.rank} 名</span>` : ''}</div>
       ${c.note ? `<i>${esc(c.note)}</i>` : ''}
     </div>`).join('')}
   </section>
-  <p class="mr-foot-note">↑↓ 為與上月比較${d.smallSampleNote ? '・* 樣本數少，僅供參考' : ''}</p>
+  <p class="mr-foot-note">▲▼ 為與上月比較${d.smallSampleNote ? '・* 樣本數少，僅供參考' : ''}</p>
 
   <section class="st-chart mr-trend">
     <h2>近 6 個月業績</h2>

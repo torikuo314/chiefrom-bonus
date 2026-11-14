@@ -11,10 +11,10 @@ const rows = [
 ];
 const cur = {
   avgTicket: 4200, customers: 30, productCustomers: 12, addonCount: 15,
-  returnRate: { value: 0.55, smallSample: true, pending: false, baseMonth: '2099-01' },
+  returnRate: { value: 0.55, num: 11, den: 20, smallSample: true, pending: false, baseMonth: '2099-01' },
   addonRate: { value: 0.3 }, mix: { 草本染髮: 90000, 頭皮護理: 30000, 商品: 18000, 加購服務: 2000, 低敏染髮: 10000 },
 };
-const prev = { avgTicket: 4000, customers: 33, productCustomers: 9, addonCount: 15, returnRate: { value: 0.6 } };
+const prev = { avgTicket: 4000, customers: 33, productCustomers: 9, addonCount: 15, returnRate: { value: 0.6, num: 9, den: 15 } };
 
 test('近 6 個月跨年', () => {
   assert.deepEqual(lastMonths('2099-02', 6), ['2098-09', '2098-10', '2098-11', '2098-12', '2099-01', '2099-02']);
@@ -23,13 +23,15 @@ test('近 6 個月跨年', () => {
 test('指標卡：本月數值＋與自己上月比較', () => {
   const by = Object.fromEntries(CARD_DEFS.map((d) => [d.key, buildCard(d, cur, prev)]));
   assert.equal(by.avgTicket.value, '4,200');
-  assert.equal(by.avgTicket.diff.text, '↑ 200 元');
-  assert.equal(by.customers.diff.text, '↓ 3 人');
+  assert.equal(by.avgTicket.diff.text, '200 元');
+  assert.equal(by.avgTicket.diff.dir, 'up');
+  assert.equal(by.customers.diff.text, '3 人');
   assert.equal(by.customers.diff.dir, 'down');
   assert.equal(by.productCustomers.value, '12');
   assert.equal(by.productCustomers.unit, '位客人');
-  assert.equal(by.productCustomers.diff.text, '↑ 3 位客人');
-  assert.equal(by.returnRate.diff.text, '↓ 5 個百分點');
+  assert.equal(by.productCustomers.diff.text, '3 位客人');
+  assert.equal(by.returnRate.diff.text, '多 2 人次回流'); // 用人次表達
+  assert.equal(by.returnRate.diff.dir, 'up');
   assert.equal(by.returnRate.small, true);
   assert.equal(buildCard(CARD_DEFS[2], { returnRate: { value: 0.5 } }, { returnRate: { pending: true } }).diff, null); // 上月資料累積中 → 不比較
   assert.equal(by.addonCount.diff.text, '與上月持平');
@@ -50,7 +52,7 @@ test('月報內容', () => {
   assert.equal(s.progress.text, '已達第一門檻，距第二門檻還差 60,000 元');
   assert.equal(s.estimatedBonus, 4000);
   assert.equal(s.cards.length, 5);
-  assert.equal(s.cards.find((c) => c.key === 'returnRate').note, '1 月服務的客人，60 天內再回店的比例');
+  assert.equal(s.cards.find((c) => c.key === 'returnRate').note, '1 月服務 20 人次，有 11 人次在 60 天內回來');
   assert.equal(s.smallSampleNote, true);
   assert.equal(s.trend[4].sales, 100000);
   assert.equal(s.praise.quotes.length, 3); // 最多 3 則

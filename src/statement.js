@@ -64,10 +64,19 @@ export function buildCard(def, cur, prev, extra = {}) {
   const value = pending ? '資料累積中' : v == null ? '—' : def.kind === 'pct' ? `${Math.round(v * 100)}%` : fmt(v);
   let diff = null;
   if (!pending && v != null && pv != null) {
-    const d = def.kind === 'pct' ? Math.round((v - pv) * 100) : Math.round(v - pv);
-    const dir = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
-    const amount = def.kind === 'pct' ? `${Math.abs(d)} 個百分點` : `${fmt(Math.abs(d))} ${def.unit}`;
-    diff = { dir, text: dir === 'flat' ? '與上月持平' : `${dir === 'up' ? '↑' : '↓'} ${amount}` };
+    if (def.kind === 'pct') {
+      // 使用者決定：比例改用「人次」表達（較有感），與上月比較回流的人次
+      const cn = c?.num, pn = p?.num;
+      if (cn != null && pn != null) {
+        const d = cn - pn;
+        const dir = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+        diff = { dir, text: dir === 'flat' ? '與上月持平' : `${dir === 'up' ? '多' : '少'} ${Math.abs(d)} 人次回流` };
+      }
+    } else {
+      const d = Math.round(v - pv);
+      const dir = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+      diff = { dir, text: dir === 'flat' ? '與上月持平' : `${fmt(Math.abs(d))} ${def.unit}` };
+    }
   }
   const small = !!(c && typeof c === 'object' && c.smallSample);
   const history = extra.history || [];
@@ -103,7 +112,9 @@ export function buildStatement(monthlyRows, name, month, params, advanceRows = [
   const scaleMax = Math.max(params.T2 * 1.15, sales * 1.05);
   const { cur, prev, praise } = extra;
   const cards = CARD_DEFS.map((d) => {
-    const note = d.key === 'returnRate' && cur?.returnRate?.baseMonth ? `${Number(cur.returnRate.baseMonth.slice(5))} 月服務的客人，${extra.returnDays || 60} 天內再回店的比例` : '';
+    const r = cur?.returnRate;
+    const note = d.key === 'returnRate' && r?.baseMonth && r.den
+      ? `${Number(r.baseMonth.slice(5))} 月服務 ${r.den} 人次，有 ${r.num} 人次在 ${extra.returnDays || 60} 天內回來` : '';
     return buildCard(d, cur, prev, { note, rank: extra.ranks?.[d.key] || null, history: extra.history || [] });
   });
   const salesHistory = lastMonths(month, 12).map((m) => { const r = mine.find((x) => x['月份'] === m); return r ? effectiveSales(r) : null; });
