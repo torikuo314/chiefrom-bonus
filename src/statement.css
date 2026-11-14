@@ -87,4 +87,6 @@
 .st-bonus b { display: inline; font: 500 24px var(--font-serif); margin: 0; }
 .st-bonus-note { margin: 6px 0 0; font-size: 11px; color: var(--ink-soft); }
 .st-bonus-row { display: flex; gap: 12px; flex-wrap: wrap; }
-.st-adv b { color: var(--ink-soft); }
+.st-adv { padding: 6px 12px; align-self: flex-end; }
+.st-adv span { font-size: 12px; }
+.st-adv b { color: var(--ink-soft); font-size: 17px; }
