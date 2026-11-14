@@ -102,11 +102,9 @@ export function buildTips({ me = {}, prev = {}, avg = {}, progress, salesBest = 
     const per = Math.ceil(progress.toNext / me.customers / 10) * 10;
     tips.push({ icon: '🎯', text: `下個月每位客人平均多約 ${per.toLocaleString('en-US')} 元（例如多一項加值服務或居家保養），就有機會達到${goal}門檻！` });
   }
-  if (me.workDays && avg.workDays && me.workDays < avg.workDays * 0.9) {
-    const perDay = me.sales && me.workDays ? me.sales / me.workDays : 0;
-    const days = goal && perDay ? Math.ceil(progress.toNext / perDay) : 0;
-    tips.push({ icon: '📅', text: days ? `本月接客 ${me.workDays} 天，下個月若能多排約 ${days} 天班，就有機會達到${goal}門檻！`
-      : `本月接客 ${me.workDays} 天，下個月若能多排幾天班，就能接到更多客人！` });
+  // 使用者決定：不提排班或休假，改為鼓勵主動聯繫老客人
+  if ((me.workDays && avg.workDays && me.workDays < avg.workDays * 0.9) || low(me.customers, avg.customers)) {
+    tips.push({ icon: '📞', text: '本月接客比較少，可以主動聯繫久沒回來的老客人，邀請她們預約回來保養！' });
   }
   const r = me.returnRate?.value, pr = prev.returnRate?.value;
   if (low(r, avg.returnRate) || (r != null && pr != null && me.returnRate.num < prev.returnRate.num)) {

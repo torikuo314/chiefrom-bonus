@@ -93,8 +93,8 @@ test('給你的小建議', async () => {
   assert.match(t1[2].text, /居家保養/);
   // 接客天數偏少 → 鼓勵多排班（換算天數）
   const tw = buildTips({ me: { customers: 20, sales: 100000, workDays: 10 }, avg: { workDays: 18 }, progress: { level: 0, toNext: 25000 } });
-  assert.match(tw[1].text, /本月接客 10 天，下個月若能多排約 3 天班，就有機會達到第一門檻！/);
-  assert.ok(!JSON.stringify(tw).includes('休假'));
+  assert.match(tw[1].text, /主動聯繫久沒回來的老客人/);
+  assert.ok(!/休假|排班/.test(JSON.stringify(tw)));
   // 表現好：只鼓勵
   const t2 = buildTips({ me: { avgTicket: 4000, returnRate: { value: 0.5, num: 9 }, productCustomerRate: 0.3, addonRate: { value: 0.4 } },
     prev: { returnRate: { value: 0.4, num: 8 } }, avg: { returnRate: 0.4, productCustomerRate: 0.2, addonRate: 0.3 }, progress: { level: 2 } });
