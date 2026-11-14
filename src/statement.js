@@ -86,41 +86,55 @@ export function buildCard(def, cur, prev, extra = {}) {
   return { key: def.key, label: def.label, value, unit: !pending && v != null && def.kind !== 'pct' ? def.unit : '', diff, small, pending, spark, best, ...rest };
 }
 
+// 建議文字庫：同一種情況有多種說法，依「姓名＋月份」輪替，每個月看到的不一樣
+export const TIP_POOL = {
+  returnLow: [
+    { icon: '💪', text: '顧客回流率可以再加油！服務結束時，記得幫客人預約下次回來的時間。' },
+    { icon: '💬', text: '服務後 3–7 天傳個 LINE 關心客人的頭皮狀況，客人會更想回來喔！' },
+    { icon: '📅', text: '結帳時可以依療程週期幫客人約好下次（例如草本染髮約 6–8 週補染、頭皮護理約 4 週）。' },
+  ],
+  fewCustomers: [
+    { icon: '📞', text: '本月接客比較少，可以主動聯繫久沒回來的老客人，邀請她們預約回來保養！' },
+    { icon: '🍂', text: '可以趁換季或節日前，邀請老客人回來做頭皮保養。' },
+    { icon: '🤝', text: '客人稱讚你的時候，可以請她把你介紹給朋友！' },
+  ],
+  productLow: [
+    { icon: '🌿', text: '可以多和客人分享居家保養，幫客人把養護效果延續到家裡。' },
+    { icon: '🧴', text: '買過養髮液的客人快用完時關心一下，順便邀請回來做頭皮檢測。' },
+  ],
+  addonLow: [
+    { icon: '✨', text: '可以多推薦加值服務，讓客人的體驗更完整。' },
+    { icon: '💡', text: '服務時可以依客人的頭皮狀況，建議適合的加值項目。' },
+  ],
+};
+const pickTip = (list, seed) => list[seed % list.length];
+export const tipSeed = (name = '', month = '') => [...name].reduce((a, c) => a + c.charCodeAt(0), 0) + Number(month.slice(5) || 0);
+
 /**
- * 給你的小建議（依表現自動產生，最多 3 則）。
+ * 給你的小建議（依表現自動產生）：恭喜最多 1 則＋實際建議最多 3 則。
  * me：本月指標；prev：上月指標；avg：店內平均（只用來判斷，不顯示）；progress：門檻進度
- * 「偏少」＝低於店內平均的 9 成。
+ * revisit：待回訪人數；seed：輪替用（姓名＋月份）。「偏少」＝低於店內平均的 9 成。
  */
-export function buildTips({ me = {}, prev = {}, avg = {}, progress, salesBest = false, ranks = {} }) {
+export function buildTips({ me = {}, prev = {}, avg = {}, progress, salesBest = false, ranks = {}, revisit = 0, revisitDays = 45, seed = 0 }) {
   const tips = [];
   const low = (v, a) => v != null && a != null && a > 0 && v < a * 0.9;
-  if (salesBest) tips.push({ icon: '🎉', text: '本月業績創個人新高，太棒了！' });
-  else if (Object.keys(ranks).length) tips.push({ icon: '👏', text: '本月有項目進入店內前三名，做得很好！' });
-  // 使用者說明：客人由公司分配，養護師無法自己多接客 → 改用「每位客人多消費」與「多排班」兩個自己能掌握的方向，並以下個月為目標
+  const cheer = salesBest ? { icon: '🎉', text: '本月業績創個人新高，太棒了！' }
+    : Object.keys(ranks).length ? { icon: '👏', text: '本月有項目進入店內前三名，做得很好！' } : null;
+  // 使用者說明：客人由公司分配 → 建議只放養護師自己能做到的事，並以下個月為目標
   const goal = progress && progress.level < 2 && progress.toNext > 0 ? (progress.level === 0 ? '第一' : '第二') : null;
   if (goal && me.customers) {
     const per = Math.ceil(progress.toNext / me.customers / 10) * 10;
     tips.push({ icon: '🎯', text: `下個月每位客人平均多約 ${per.toLocaleString('en-US')} 元（例如多一項加值服務或居家保養），就有機會達到${goal}門檻！` });
   }
-  // 使用者決定：不提排班或休假，改為鼓勵主動聯繫老客人
-  if ((me.workDays && avg.workDays && me.workDays < avg.workDays * 0.9) || low(me.customers, avg.customers)) {
-    tips.push({ icon: '📞', text: '本月接客比較少，可以主動聯繫久沒回來的老客人，邀請她們預約回來保養！' });
-  }
+  if (revisit >= 3) tips.push({ icon: '📋', text: `你有 ${revisit} 位客人超過 ${revisitDays} 天還沒回來，可以主動關心、邀請她們預約！（名單可以向店長拿）` });
   const r = me.returnRate?.value, pr = prev.returnRate?.value;
-  if (low(r, avg.returnRate) || (r != null && pr != null && me.returnRate.num < prev.returnRate.num)) {
-    tips.push({ icon: '💪', text: '顧客回流率可以再加油！服務結束時，記得幫客人預約或提醒下次回來的時間。' });
-  }
-  if (low(me.productCustomerRate, avg.productCustomerRate)) {
-    tips.push({ icon: '🌿', text: '可以多和客人分享居家保養，幫客人把養護效果延續到家裡。' });
-  }
-  if (low(me.addonRate?.value, avg.addonRate)) {
-    tips.push({ icon: '✨', text: '可以多推薦加值服務，讓客人的體驗更完整。' });
-  }
-  if (tips.length === (salesBest || Object.keys(ranks).length ? 1 : 0)) tips.push({ icon: '🌱', text: '各項表現都很穩定，繼續保持！' });
-  // 恭喜不佔名額：恭喜（最多 1 則）＋實際建議最多 3 則
-  const cheer = tips.filter((t) => t.icon === '🎉' || t.icon === '👏');
-  const rest = tips.filter((t) => t.icon !== '🎉' && t.icon !== '👏');
-  return [...cheer.slice(0, 1), ...rest.slice(0, 3)];
+  if (low(r, avg.returnRate) || (r != null && pr != null && me.returnRate.num < prev.returnRate.num)) tips.push(pickTip(TIP_POOL.returnLow, seed));
+  // 使用者決定：不提排班或休假
+  if ((me.workDays && avg.workDays && me.workDays < avg.workDays * 0.9) || low(me.customers, avg.customers)) tips.push(pickTip(TIP_POOL.fewCustomers, seed));
+  if (low(me.productCustomerRate, avg.productCustomerRate)) tips.push(pickTip(TIP_POOL.productLow, seed));
+  if (low(me.addonRate?.value, avg.addonRate)) tips.push(pickTip(TIP_POOL.addonLow, seed));
+  if (!tips.length) tips.push({ icon: '🌱', text: '各項表現都很穩定，繼續保持！' });
+  return [...(cheer ? [cheer] : []), ...tips.slice(0, 3)];
 }
 
 /** 服務項目佔比：固定順序，其餘併入「其他」。 */
@@ -152,7 +166,7 @@ export function buildStatement(monthlyRows, name, month, params, advanceRows = [
     const r = cur?.returnRate;
     const note = d.key === 'returnRate' && r?.baseMonth && r.den
       ? `${Number(r.baseMonth.slice(5))} 月服務 ${r.den} 人次，有 ${r.num} 人次在 ${extra.returnDays || 60} 天內回來` : '';
-    return buildCard(d, cur, prev, { note, rank: extra.ranks?.[d.key] || null, history: extra.history || [] });
+    return buildCard(d, cur, prev, { note, rank: extra.ranks?.[d.key] || null, ranked: d.key in RANKED_KEYS && !!extra.compared, history: extra.history || [] });
   });
   const salesHistory = lastMonths(month, 12).map((m) => { const r = mine.find((x) => x['月份'] === m); return r ? effectiveSales(r) : null; });
   const result = {
@@ -175,7 +189,8 @@ export function buildStatement(monthlyRows, name, month, params, advanceRows = [
     smallSampleNote: cards.some((c) => c.small),
     trend,
     // 使用者決定：沒有勾選留言時整區隱藏
-    tips: buildTips({ me: cur || {}, prev: prev || {}, avg: extra.storeAvg || {}, progress: p, salesBest: isPersonalBest(sales, salesHistory.slice(0, -1)), ranks: extra.ranks || {} }),
+    tips: buildTips({ me: cur || {}, prev: prev || {}, avg: extra.storeAvg || {}, progress: p, salesBest: isPersonalBest(sales, salesHistory.slice(0, -1)), ranks: extra.ranks || {},
+      revisit: extra.revisit || 0, revisitDays: extra.revisitDays || 45, seed: tipSeed(name, month) }),
     praise: praise && praise.quotes.length ? { mentions: praise.mentions, quotes: praise.quotes.slice(0, 3) } : null,
   };
   // 建議 4 則時留言最多 2 則，確保一頁 A4 放得下

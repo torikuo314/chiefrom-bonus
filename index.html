@@ -26,6 +26,7 @@
     <a data-view="statement">產出明細</a>
     <a data-view="advance">預支</a>
     <a data-view="quarter">季結算</a>
+    <a data-view="revisit">回訪名單</a>
     <a data-view="internal">內部版</a>
     <a data-view="settings">設定</a>
   </nav>
@@ -230,6 +231,22 @@
     <div id="q-stage" aria-hidden="true"></div>
   </div>
 
+  <!-- 待回訪名單 -->
+  <div id="view-revisit" class="view" hidden>
+    <section class="card">
+      <div class="row-between">
+        <h2>待回訪名單</h2>
+        <span>
+          <label class="inline">養護師 <select id="rv-staff"></select></label>
+          <label class="inline">超過 <input id="rv-days" type="number" min="1" style="width:70px"> 天</label>
+        </span>
+      </div>
+      <p class="hint">系統不存客人姓名與手機，名單只列訂單號碼；請養護師用訂單號碼到神美查詢客人，主動關心、邀請預約。</p>
+      <p id="rv-ref" class="hint"></p>
+      <div id="rv-body"></div>
+    </section>
+  </div>
+
   <!-- 公司內部版 -->
   <div id="view-internal" class="view" hidden>
     <section class="card">
@@ -318,6 +335,8 @@
       <div class="grid2">
         <label>顧客回流天數（服務後幾天內再回店算回流）<input id="ms-old" type="number" min="1"></label>
         <label>樣本數少於幾人時加註「僅供參考」<input id="ms-min" type="number" min="1"></label>
+        <label>待回訪：超過幾天沒回來<input id="ms-rv" type="number" min="1"></label>
+        <label>待回訪：超過幾天就不列入<input id="ms-rvmax" type="number" min="1"></label>
       </div>
       <label>項目類別對照（每行一個：【】內的文字=報表類別；商品、附加服務→加購服務、方案開頭→方案為固定規則）<textarea id="ms-cat" rows="5"></textarea></label>
       <p class="hint">類別對照在匯入時套用；修改後請重新匯入受影響的月份。</p>

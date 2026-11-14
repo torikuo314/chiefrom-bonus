@@ -80,6 +80,17 @@ export function storeAvgOf(ctx, month) {
   };
 }
 
+/** 待回訪人數（以該月月底為基準日）。 */
+export function revisitCountOf(ctx, name, month, revisitList) {
+  const d = data(ctx);
+  const end = (() => { const [y, m] = month.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); })();
+  const ref = d.index.dataEnd && d.index.dataEnd < end ? d.index.dataEnd : end;
+  return revisitList(d.index, name, ref, { days: ctx.settings.metric.revisitDays, maxDays: ctx.settings.metric.revisitMaxDays }).length;
+}
+
+/** 給回訪名單頁使用：索引與資料最後一天。 */
+export const indexOf = (ctx) => data(ctx).index;
+
 /** 某人近 n 個月的指標（舊→新，最後一個是 month）。 */
 export function historyOf(ctx, name, month, n = 12) {
   return Array.from({ length: n }, (_, i) => addMonths(month, i - n + 1)).map((m) => metricsOf(ctx, name, m));

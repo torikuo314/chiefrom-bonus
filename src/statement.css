@@ -228,3 +228,17 @@
 .mr-quotes { gap: 6px !important; margin-top: 4px !important; }
 .mr-praise blockquote { padding: 7px 14px 7px 42px !important; font-size: 14px !important; }
 .mr-praise blockquote i { font-size: 32px !important; }
+
+/* 名次：放在第二列方塊右側，放大顯示 */
+.mr-card.ranked { position: relative; padding-right: 170px !important; min-height: 128px !important; }
+.mr-rankbox { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); width: 140px; text-align: center; }
+.mr-medal { font-size: 52px; line-height: 1.1; }
+.mr-medal.soft { font-size: 34px; opacity: .85; }
+.mr-rank-text { margin-top: 4px; font: 700 18px var(--font-sans); color: #7a5a1c; letter-spacing: .06em; }
+.mr-rank-text.soft { font: 600 14px/1.5 var(--font-sans); color: var(--ink-soft); }
+.mr-rankbox.top { background: var(--accent-soft); border-radius: 12px; padding: 8px 0 10px; }
+.mr-rankbox { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.mr-rankbox.top { padding: 10px 0 12px !important; }
+.mr-medal { width: 100%; text-align: center; }
+.mr-rank-text { width: 100%; text-align: center; }
+.mr-rankbox, .mr-rankbox * { box-shadow: none !important; border: 0 !important; text-decoration: none !important; }

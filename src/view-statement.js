@@ -2,7 +2,8 @@
 // 內容只來自 buildStatement()：含本月預估獎金、本季已預支；不含比例、級距業績、店內平均數字、排名。
 import { $, $$, esc, fmt } from './ui.js';
 import { buildStatement, topRanks, RANKED_KEYS } from './statement.js';
-import { metricsOf, praiseOf, prevMonthOf, ranksOf, historyOf, storeAvgOf } from './analytics.js';
+import { metricsOf, praiseOf, prevMonthOf, ranksOf, historyOf, storeAvgOf, revisitCountOf } from './analytics.js';
+import { revisitList } from './revisit.js';
 import { css, capture, downloadZip, renderPreviews } from './export.js';
 
 let ctx;
@@ -56,6 +57,8 @@ async function make() {
         cur: metricsOf(ctx, name, month), prev: metricsOf(ctx, name, prevMonthOf(month)),
         ranks: ranks[name] || {}, praise: praiseOf(ctx, name, [month]), returnDays: ctx.settings.metric.returnDays,
         history: historyOf(ctx, name, month, 12), storeAvg,
+        compared: !!ctx.settings.staff.find((p) => p.name === name)?.compare,
+        revisit: revisitCountOf(ctx, name, month, revisitList), revisitDays: ctx.settings.metric.revisitDays,
       });
       results.push({ name, ...(await renderSheet(data)) });
     }
@@ -101,12 +104,15 @@ function sheetHtml(d) {
   </section>
 
   <section class="mr-cards">
-    ${d.cards.map((c) => `<div class="mr-card${c.best ? ' is-best' : ''}">
+    ${d.cards.map((c) => `<div class="mr-card${c.best ? ' is-best' : ''}${c.ranked ? ' ranked' : ''}">
       <span>${c.label}</span>
       <b class="${c.pending ? 'pending' : ''}">${esc(c.value)}${c.unit ? `<small> ${c.unit}</small>` : ''}${c.small ? '<sup>*</sup>' : ''}</b>
       <em class="mr-diff">${c.diff ? `${c.diff.dir === 'flat' ? '' : `<span class="mr-arrow ${c.diff.dir}">${c.diff.dir === 'up' ? '↑' : '↓'}</span>`}${esc(c.diff.text)}` : '&nbsp;'}</em>
-      <div class="mr-tags">${c.best ? '<span class="mr-best">🎉 個人新高</span>' : ''}${c.rank ? `<span class="mr-rank">${['', '🥇', '🥈', '🥉'][c.rank]} 店內第 ${c.rank} 名</span>` : ''}</div>
+      <div class="mr-tags">${c.best ? '<span class="mr-best">🎉 個人新高</span>' : ''}</div>
       ${c.note ? `<i>${esc(c.note)}</i>` : ''}
+      ${c.ranked ? `<div class="mr-rankbox ${c.rank ? 'top' : ''}">${c.rank
+        ? `<div class="mr-medal">${['', '🥇', '🥈', '🥉'][c.rank]}</div><div class="mr-rank-text">店內第 ${c.rank} 名</div>`
+        : '<div class="mr-medal soft">💪</div><div class="mr-rank-text soft">還沒擠進前三名<br>加油！</div>'}</div>` : ''}
     </div>`).join('')}
   </section>
   ${d.smallSampleNote ? '<p class="mr-foot-note">* 樣本數少，僅供參考</p>' : ''}

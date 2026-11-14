@@ -74,3 +74,6 @@ table.sv-list td:last-child { width: 90px; }
 .down { color: var(--c-terracotta); font-size: 10px; margin-left: 3px; }
 tr.done td { color: var(--ink-soft); text-decoration: line-through; }
 #in-warn { margin: 0; padding-left: 20px; color: var(--c-terracotta); }
+
+.rv-staff { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+.rv-staff h3 { margin: 6px 0; }
