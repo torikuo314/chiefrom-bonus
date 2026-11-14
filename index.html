@@ -21,7 +21,8 @@
   <h1>頭沐 | CHIEFROM</h1>
   <nav id="nav">
     <a data-view="month">月份總覽</a>
-    <a data-view="import">上傳匯入</a>
+    <a data-view="import">訂單匯入</a>
+    <a data-view="survey">問卷</a>
     <a data-view="statement">產出明細</a>
     <a data-view="advance">預支</a>
     <a data-view="quarter">季結算</a>
@@ -80,11 +81,11 @@
   <!-- 上傳匯入 -->
   <div id="view-import" class="view" hidden>
     <section class="card">
-      <h2>1. 上傳月報表</h2>
-      <p class="hint">檔案只在你的瀏覽器裡讀取，不會上傳到任何第三方。</p>
+      <h2>1. 上傳神美「訂單列表」</h2>
+      <p class="hint">檔案只在你的瀏覽器裡讀取；客人手機會轉成無法還原的代碼（雜湊）才存進試算表，不存姓名與明碼手機。</p>
       <label class="drop" id="drop">
         <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
-        <span>把 POS 匯出檔拖放到這裡，或點此選擇（可一次選多家門店）</span>
+        <span>把神美匯出的訂單列表拖放到這裡，或點此選擇（可一次匯入多個月、多個檔案）</span>
       </label>
       <div id="files"></div>
     </section>
@@ -98,7 +99,7 @@
       <h2>3. 匯入預覽</h2>
       <div id="month-pick"></div>
       <div id="summary" class="stats"></div>
-      <h3>各養護師業績</h3>
+      <h3>各月份業績</h3>
       <table id="staff-table"></table>
       <div id="pending-wrap" hidden>
         <h3 class="warn">待處理（必須指定歸屬或排除才能匯入）</h3>
@@ -129,6 +130,50 @@
       <div id="s-results"></div>
     </section>
     <div id="s-stage" aria-hidden="true"></div>
+  </div>
+
+  <!-- 問卷 -->
+  <div id="view-survey" class="view" hidden>
+    <section class="card">
+      <h2>匯入問卷回覆</h2>
+      <p class="hint">支援 .xlsx／.csv（Numbers 檔請先「輸出」成 Excel）。檔案只在瀏覽器讀取，不存客人姓名。</p>
+      <label class="drop" id="sv-drop">
+        <input type="file" id="sv-file" accept=".xlsx,.xls,.csv" hidden>
+        <span>把問卷回覆檔拖放到這裡，或點此選擇</span>
+      </label>
+      <p id="sv-fileinfo" class="hint"></p>
+      <div id="sv-step-map" hidden>
+        <h3>欄位對應</h3>
+        <div id="sv-map-form" class="grid2"></div>
+        <button id="sv-map-save" class="primary">套用並記住</button>
+      </div>
+      <div id="sv-preview" hidden>
+        <div id="sv-summary" class="stats"></div>
+        <p id="sv-note"></p>
+        <div id="sv-pending-wrap" hidden>
+          <h3>待處理：請指定是哪位養護師，或設為未指名</h3>
+          <table id="sv-pending"></table>
+          <button id="sv-rest-anon" class="mini">其餘全部設為未指名</button>
+        </div>
+        <div class="actions">
+          <button id="sv-import" class="primary">確認匯入</button>
+          <span id="sv-import-msg" class="hint"></span>
+        </div>
+      </div>
+      <p id="sv-done" class="hint"></p>
+    </section>
+    <section class="card" id="sv-review" hidden>
+      <div class="row-between">
+        <h2>每月整理：客人怎麼說</h2>
+        <label class="inline">月份 <select id="sv-month"></select></label>
+      </div>
+      <p class="hint">勾選要放進個人經營月報的讚美留言（每人 2–3 則），可直接修改文字、去掉客人可辨識的資訊。負評與環境類建議只會出現在公司內部版。</p>
+      <div id="sv-review-body"></div>
+      <div class="actions">
+        <button id="sv-save" class="primary">儲存整理</button>
+        <span id="sv-saved" class="hint"></span>
+      </div>
+    </section>
   </div>
 
   <!-- 預支 -->
@@ -196,9 +241,12 @@
     <section class="card">
       <h2>門店與人員</h2>
       <label>門店（逗號分隔，匯入時依此順序預設）<input id="set-stores"></label>
-      <label>養護師（每行一位：姓名, 別名1, 別名2…）<textarea id="set-staff" rows="5"></textarea></label>
-      <p class="hint">從名單移除的人會標記為「離職」，歷史資料保留。</p>
-      <label>固定排除人員（逗號分隔，匯入時自動略過並列在摘要中）<input id="set-excluded"></label>
+      <h3>養護師名單</h3>
+      <p class="hint">「顯示名稱」會出現在報表上；「神美上的名稱」用來對應訂單的工作人員欄；「問卷暱稱」用來比對問卷第一題（不分大小寫，部分符合即可；純數字、英文 2 字以下、疊字等容易誤判的暱稱會列入待處理）。「納入比較」關閉的人不列入雷達圖的店內平均。從名單刪除的人會標記為離職，歷史資料保留。</p>
+      <table id="staff-editor" class="editor"></table>
+      <button id="staff-add" class="mini">＋ 新增一位</button>
+      <label>固定排除人員（神美上的名稱，逗號分隔；匯入時自動略過並列在摘要中）<input id="set-excluded"></label>
+      <label>環境類建議關鍵字（逗號分隔；問卷第三題含這些字會自動標記為環境類）<input id="set-env"></label>
       <button id="set-save" class="primary">儲存</button>
     </section>
     <section class="card">
@@ -217,7 +265,7 @@
       <p id="p-msg" class="hint"></p>
     </section>
     <section class="card">
-      <h2>匯入欄位對應</h2>
+      <h2>神美訂單欄位對應</h2>
       <table id="map-table"></table>
       <button id="map-reset">還原為預設對應</button>
     </section>

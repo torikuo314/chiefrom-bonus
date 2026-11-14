@@ -55,3 +55,16 @@ tr.unsigned td { color: var(--warn); }
   .stat b { font-size: 17px; }
   .top { padding: 14px 16px; }
 }
+
+td.l, th.l { text-align: left; }
+td.wrap { white-space: normal; min-width: 220px; }
+label.check.inline-check { display: inline-flex; margin: 0 12px 4px 0; }
+label.check.inline-check.guess { font-weight: 500; color: var(--ink); }
+td.picks { white-space: normal; min-width: 340px; }
+table.editor td { padding: 4px 6px; }
+table.editor input:not([type=checkbox]) { width: 100%; min-width: 120px; }
+.sv-list textarea { width: 100%; font: inherit; border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+button.on { background: var(--c-sage); color: #fff; }
+table.sv-list { display: table; width: 100%; }
+table.sv-list td:first-child { width: 32px; }
+table.sv-list td:last-child { width: 90px; }

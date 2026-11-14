@@ -6,18 +6,22 @@
  */
 
 var SCHEMA = {
-  '養護師': ['姓名', '別名', '所屬門店', '在職狀態'],
-  '交易明細': ['月份', '門店', '報表名稱', '養護師', '身分', '處理', '服務業績', '商品業績', '金額', '客次', '客數', '匯入批次'],
+  '養護師': ['姓名', '別名', '暱稱', '所屬門店', '在職狀態', '納入比較'],
+  // 神美訂單列表：一個品項一列。客人只存手機雜湊（SHA-256＋鹽值），不存姓名與明碼手機。
+  '交易明細': ['月份', '訂單號碼', '列序', '訂單時間', '店家', '客人雜湊', '分類', '類別', '品項', '工作人員', '職位', '業績', '項目協助', '匯入批次'],
+  '問卷': ['編號', '消費日期', '月份', '第一題', '形容詞', '建議', '星數', '對應養護師', '未指名', '讚美勾選', '讚美文字', '季讚美勾選',
+         '負評', '環境類', '環境已處理', '匯入批次'],
   '月業績': ['月份', '養護師', '業績', '服務業績', '商品業績', '筆數', '客數', '客單價', '第一級業績', '第二級業績', '當月獎金',
           '調整金額', '調整原因', '確認狀態', '確認日期', '確認方式', '備註'],
   '預支': ['編號', '日期', '養護師', '金額', '備註', '已簽同意書', '扣抵季度'],
-  '季結算': ['季度', '養護師', '季獎金合計', '上季結轉', '本季預支', '實發金額', '結轉下季', '結算日期', '發放日期', '鎖定狀態'],
+  '季結算': ['季度', '養護師', '季獎金合計', '上季結轉', '本季預支', '實發金額', '結轉下季', '結算日期', '發放日期', '鎖定狀態', '主管回饋', '下季目標'],
   '參數': ['參數名稱', '數值', '生效月份'],
   '設定': ['項目', '值'],
   '操作紀錄': ['時間', '動作', '內容']
 };
 // 這些欄位設為純文字，避免 Google 試算表把「2026-10」自動轉成日期
-var TEXT_COLS = ['月份', '季度', '生效月份', '日期', '編號', '時間', '確認日期', '結算日期', '發放日期', '扣抵季度', '匯入批次'];
+var TEXT_COLS = ['月份', '季度', '生效月份', '日期', '編號', '時間', '確認日期', '結算日期', '發放日期', '扣抵季度', '匯入批次',
+  '訂單號碼', '訂單時間', '消費日期', '客人雜湊'];
 var DEFAULT_PARAMS = [['T1', 140000], ['T2', 220000], ['R1', 0.2], ['R2', 0.3]];
 
 function doGet() {
@@ -53,11 +57,17 @@ function handle_(action, p) {
       var out = {};
       (p.sheets || Object.keys(SCHEMA)).forEach(function (n) { out[n] = readRows_(sheet_(ss, n)); });
       return out;
-    case 'replace': // 刪除符合 match 的列後寫入 rows：{ sheet, match: {欄: 值}, rows: [...] }
-      var sh = sheet_(ss, p.sheet);
-      var removed = deleteWhere_(sh, p.match || {});
-      appendRows_(sh, p.rows || []);
-      return { removed: removed, added: (p.rows || []).length };
+    case 'replace': // 刪除符合 match 的列後寫入 rows：{ sheet, match: {欄: 值 或 [值...]}, rows: [...] }
+      return replaceWhere_(sheet_(ss, p.sheet), p.match || {}, p.rows || []);
+    case 'importOrders': // { months: [...], rows: [{..., 手機}] }：手機在伺服器端轉成雜湊後寫入
+      var salt = salt_();
+      var rows = (p.rows || []).map(function (r) {
+        var o = {};
+        Object.keys(r).forEach(function (k) { if (k !== '手機') o[k] = r[k]; });
+        o['客人雜湊'] = r['手機'] ? hash_(salt, String(r['手機'])) : '';
+        return o;
+      });
+      return replaceWhere_(sheet_(ss, '交易明細'), { '月份': p.months || [] }, rows);
     case 'upsert': // 依 keys 更新或新增：{ sheet, keys: ['月份','養護師'], rows }
       return upsert_(sheet_(ss, p.sheet), p.keys, p.rows || []);
     case 'append':
@@ -77,6 +87,9 @@ function handle_(action, p) {
 
 function init_(ss) {
   var created = [];
+  // v1 的「交易明細」（POS 彙總報表格式）改名保留，v2 改存訂單逐筆明細
+  var old = ss.getSheetByName('交易明細');
+  if (old && old.getLastColumn() && headers_(old).indexOf('報表名稱') >= 0) old.setName('交易明細_v1舊資料');
   Object.keys(SCHEMA).forEach(function (n) {
     var sh = ss.getSheetByName(n);
     if (!sh) { sh = ss.insertSheet(n); created.push(n); }
@@ -126,17 +139,37 @@ function appendRows_(sh, rows) {
 function matches_(row, h, match) {
   return Object.keys(match).every(function (k) { return String(row[h.indexOf(k)]) === String(match[k]); });
 }
-function deleteWhere_(sh, match) {
+function matchesAny_(row, h, match) {
+  return Object.keys(match).every(function (k) {
+    var v = String(row[h.indexOf(k)]);
+    return Array.isArray(match[k]) ? match[k].map(String).indexOf(v) >= 0 : v === String(match[k]);
+  });
+}
+// 一次讀出、過濾、整批寫回（大量列時比逐列刪除快很多）
+function replaceWhere_(sh, match, rows) {
   if (!Object.keys(match).length) throw new Error('replace 需要 match 條件');
-  var last = sh.getLastRow();
-  if (last < 2) return 0;
   var h = headers_(sh);
-  var data = sh.getRange(2, 1, last - 1, h.length).getDisplayValues();
-  var n = 0;
-  for (var i = data.length - 1; i >= 0; i--) {
-    if (matches_(data[i], h, match)) { sh.deleteRow(i + 2); n++; }
-  }
-  return n;
+  var last = sh.getLastRow();
+  var data = last >= 2 ? sh.getRange(2, 1, last - 1, h.length).getValues() : [];
+  var display = last >= 2 ? sh.getRange(2, 1, last - 1, h.length).getDisplayValues() : [];
+  var kept = data.filter(function (r, i) { return !matchesAny_(display[i], h, match); });
+  var added = rows.map(function (o) { return h.map(function (k) { return cell_(o[k]); }); });
+  var all = kept.concat(added);
+  if (last >= 2) sh.getRange(2, 1, last - 1, h.length).clearContent();
+  if (all.length) sh.getRange(2, 1, all.length, h.length).setValues(all);
+  return { removed: data.length - kept.length, added: added.length };
+}
+function salt_() {
+  var props = PropertiesService.getScriptProperties();
+  var s = props.getProperty('SALT');
+  if (!s) { s = Utilities.getUuid() + Utilities.getUuid(); props.setProperty('SALT', s); }
+  return s;
+}
+function hash_(salt, phone) {
+  var digits = phone.replace(/\D/g, '');
+  if (!digits) return '';
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + digits, Utilities.Charset.UTF_8);
+  return bytes.map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('').slice(0, 32);
 }
 function upsert_(sh, keys, rows) {
   if (!keys || !keys.length) throw new Error('upsert 需要 keys');
@@ -183,6 +216,7 @@ function setupToken() {
     t = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '');
     props.setProperty('TOKEN', t);
   }
+  salt_(); // 手機雜湊用的固定鹽值（只存在這裡，不外流）
   init_(SpreadsheetApp.getActiveSpreadsheet());
   Logger.log('你的 token（請複製到業績系統的「設定」頁，勿外流）：' + t);
 }

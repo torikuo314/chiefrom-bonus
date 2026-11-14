@@ -70,11 +70,20 @@ function renderDetail(ctx) {
     ['第一級業績', fmt(r['第一級業績'])], ['第二級業績', fmt(r['第二級業績'])], ['試算獎金（後台）', fmt(r['當月獎金'])],
   ].map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');
 
-  const lines = ctx.db['交易明細'].filter((l) => l['月份'] === month && l['養護師'] === current);
-  $('#d-lines').innerHTML = `<thead><tr><th>門店</th><th>報表名稱</th><th>處理</th><th>服務</th><th>商品</th><th>合計</th><th>客次</th><th>客數</th></tr></thead>
-    <tbody>${lines.map((l) => `<tr><td>${esc(l['門店'])}</td><td style="text-align:left">${esc(l['報表名稱'])}</td><td>${esc(l['處理'])}</td>
-      <td>${fmt(l['服務業績'])}</td><td>${fmt(l['商品業績'])}</td><td>${fmt(l['金額'])}</td>
-      <td>${l['身分'] === '助理' ? '<span class="hint">不計</span>' : fmt(l['客次'])}</td><td>${l['身分'] === '助理' ? '<span class="hint">不計</span>' : fmt(l['客數'])}</td></tr>`).join('')}</tbody>`;
+  // 業績組成：依店家 × 職位 × 類別彙總神美訂單明細
+  const lines = ctx.db['交易明細'].filter((l) => l['月份'] === month && l['工作人員'] === current);
+  const groups = new Map();
+  for (const l of lines) {
+    const k = `${l['店家']}|${l['職位']}|${l['類別']}`;
+    if (!groups.has(k)) groups.set(k, { store: l['店家'], role: l['職位'], type: l['類別'], rows: 0, orders: new Set(), amount: 0 });
+    const g = groups.get(k);
+    g.rows++; g.orders.add(l['訂單號碼']); g.amount += num(l['業績']);
+  }
+  const gs = [...groups.values()].sort((a, b) => a.store.localeCompare(b.store) || a.role.localeCompare(b.role) || b.amount - a.amount);
+  $('#d-lines').innerHTML = gs.length ? `<thead><tr><th>店家</th><th>職位</th><th>類別</th><th>訂單數</th><th>品項數</th><th>業績</th></tr></thead>
+    <tbody>${gs.map((g) => `<tr><td>${esc(g.store)}</td><td>${esc(g.role)}</td><td class="l">${esc(g.type)}</td><td>${g.orders.size}</td><td>${g.rows}</td><td>${fmt(g.amount)}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td>合計</td><td colspan="4"></td><td>${fmt(gs.reduce((a, g) => a + g.amount, 0))}</td></tr></tfoot>`
+    : '<tbody><tr><td class="hint">沒有訂單明細（可能是舊版彙總報表匯入的月份）</td></tr></tbody>';
 
   $('#d-adj').value = adj || '';
   $('#d-adj-reason').value = '';

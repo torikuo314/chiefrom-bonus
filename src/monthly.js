@@ -1,5 +1,4 @@
 // 由匯入資料產生「月業績」列；由「參數」分頁產生參數版本。純函式。
-import { aggregate } from './importer.js';
 import { monthlyBonus, paramsForMonth, quarterOf } from './calc.js';
 
 const n = (v) => (v === '' || v == null ? 0 : Number(String(v).replace(/,/g, '')) || 0);
@@ -14,45 +13,66 @@ export function paramVersions(rows) {
   });
 }
 
-/** 交易明細列（字串）→ importer 的 line 物件。 */
-export function linesFromSheet(rows) {
-  return rows.map((r, i) => ({
-    rowNo: i, store: r['門店'], rawName: r['報表名稱'], name: r['養護師'], role: r['身分'],
-    status: r['處理'] === '排除' ? 'excluded' : r['處理'] === '待處理' ? 'pending' : 'staff',
-    service: n(r['服務業績']), product: n(r['商品業績']), amount: n(r['金額']),
-    visits: n(r['客次']), customers: n(r['客數']),
+/** 訂單 line（orders.js 解析結果，已歸屬）→ 交易明細列（手機由後端轉雜湊）。 */
+export function orderLineToSheetRow(l, batchId) {
+  return {
+    月份: l.month, 訂單號碼: l.orderNo, 列序: l.lineNo, 訂單時間: l.date, 店家: l.store, 手機: l.customer,
+    分類: l.category, 類別: l.type, 品項: l.item, 工作人員: l.staff, 職位: l.role, 業績: l.amount, 項目協助: l.assist, 匯入批次: batchId,
+  };
+}
+
+/** 交易明細列（字串）→ metrics.js 使用的 row。 */
+export function orderLinesFromSheet(rows) {
+  return rows.map((r) => ({
+    orderNo: String(r['訂單號碼']), lineNo: n(r['列序']), date: String(r['訂單時間']).slice(0, 10), month: r['月份'],
+    store: r['店家'], customer: r['客人雜湊'] || '', category: r['分類'], type: r['類別'], item: r['品項'],
+    staff: r['工作人員'], role: r['職位'] === '助理' ? '助理' : '設計師', amount: n(r['業績']), assist: n(r['項目協助']),
   }));
 }
 
-/** importer line（已套用待處理決定）→ 交易明細列。 */
-export function lineToSheetRow(l, month, batchId, decision) {
-  const assigned = l.status === 'staff' ? l.name : decision?.assignTo || '';
-  const how = l.status === 'staff' ? '計入' : decision?.assignTo ? '指定歸屬' : '排除';
-  return {
-    月份: month, 門店: l.store, 報表名稱: l.rawName, 養護師: assigned, 身分: l.role, 處理: how,
-    服務業績: l.service, 商品業績: l.product, 金額: l.amount, 客次: l.visits, 客數: l.customers, 匯入批次: batchId,
-  };
+/**
+ * 某月各養護師的業績統計（寫入月業績用）。
+ * 業績＝所有列；服務／商品依類別；筆數、客數、客單價只看擔任設計師的列。
+ */
+export function monthStatsFromLines(lines, month, excludeStores = ['夥伴店']) {
+  const per = new Map();
+  for (const l of lines) {
+    if (l.month !== month || !l.staff || excludeStores.includes(l.store)) continue;
+    if (!per.has(l.staff)) per.set(l.staff, { name: l.staff, sales: 0, product: 0, designerSales: 0, orders: new Set(), customers: new Set() });
+    const p = per.get(l.staff);
+    p.sales += l.amount;
+    if (l.type === '商品') p.product += l.amount;
+    if (l.role === '設計師') {
+      p.designerSales += l.amount;
+      p.orders.add(l.orderNo);
+      if (l.customer) p.customers.add(l.customer);
+    }
+  }
+  return [...per.values()].map((p) => ({
+    name: p.name, sales: p.sales, product: p.product, service: p.sales - p.product,
+    visits: p.orders.size, customers: p.customers.size,
+    avgTicket: p.orders.size ? Math.round(p.designerSales / p.orders.size) : null,
+  }));
 }
 
 /**
  * 計算某月所有養護師的月業績列。
- * monthLines：該月全部門店的 line（已歸屬）；existing：月業績分頁中該月的列。
+ * stats：monthStatsFromLines 的結果；existing：月業績分頁中該月的列。
  * 保留手動調整與確認資料；業績有變動時把確認狀態改回「未確認」。
  */
-export function buildMonthlyRows(month, monthLines, existing, params) {
-  const { staff } = aggregate(monthLines.filter((l) => l.status !== 'excluded'));
-  const byName = new Map(staff.map((s) => [s.name, s]));
+export function buildMonthlyRows(month, stats, existing, params) {
+  const byName = new Map(stats.map((s) => [s.name, s]));
   const names = new Set([...byName.keys(), ...existing.map((r) => r['養護師'])]);
   const rows = [];
   const changed = [];
   for (const name of names) {
-    const s = byName.get(name) || { sales: 0, service: 0, product: 0, visits: 0, customers: 0 };
+    const s = byName.get(name) || { sales: 0, service: 0, product: 0, visits: 0, customers: 0, avgTicket: null };
     const old = existing.find((r) => r['養護師'] === name);
     const adj = old ? n(old['調整金額']) : 0;
     const b = monthlyBonus(s.sales + adj, params);
     const row = {
       月份: month, 養護師: name, 業績: s.sales, 服務業績: s.service, 商品業績: s.product,
-      筆數: s.visits, 客數: s.customers, 客單價: s.customers ? Math.round((s.sales + adj) / s.customers) : '',
+      筆數: s.visits, 客數: s.customers, 客單價: s.avgTicket ?? '',
       第一級業績: b.tier1, 第二級業績: b.tier2, 當月獎金: b.bonus,
     };
     if (!old) row['確認狀態'] = '未確認';
@@ -78,12 +98,9 @@ export function paramsFor(paramRows, month) {
 
 /** 手動調整後重算月業績列的獎金欄位。adj 為調整金額（可負）。 */
 export function recalcWithAdjustment(row, adj, params) {
-  const sales = n(row['業績']);
-  const customers = n(row['客數']);
-  const b = monthlyBonus(sales + adj, params);
+  const b = monthlyBonus(n(row['業績']) + adj, params);
   return {
     調整金額: adj,
-    客單價: customers ? Math.round((sales + adj) / customers) : '',
     第一級業績: b.tier1, 第二級業績: b.tier2, 當月獎金: b.bonus,
   };
 }

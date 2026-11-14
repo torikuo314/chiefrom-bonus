@@ -1,6 +1,8 @@
 // 主程式：共用狀態、分頁切換、設定頁。
 import { $, $$, esc, fmt, split, num } from './ui.js';
-import { DEFAULT_MAPPING, SUMMARY_FIELDS } from './importer.js';
+import { ORDER_FIELDS, DEFAULT_ORDER_MAPPING } from './orders.js';
+import { DEFAULT_CATEGORY_MAP, DEFAULT_METRIC_SETTINGS } from './metrics.js';
+import { DEFAULT_ENV_KEYWORDS, DEFAULT_ANONYMOUS } from './survey.js';
 import { createBackend, getConnection, setConnection } from './backend.js';
 import { paramVersions, paramsFor, isQuarterLocked } from './monthly.js';
 import { validateParams } from './calc.js';
@@ -9,24 +11,33 @@ import * as monthView from './view-month.js';
 import * as advanceView from './view-advance.js';
 import * as statementView from './view-statement.js';
 import * as quarterView from './view-quarter.js';
+import * as surveyView from './view-survey.js';
 
-const SHEETS = ['養護師', '設定', '參數', '月業績', '季結算', '交易明細', '預支'];
+const SHEETS = ['養護師', '設定', '參數', '月業績', '季結算', '交易明細', '預支', '問卷'];
 
 export const ctx = {
   backend: createBackend(),
   db: null,
-  settings: { stores: ['本館', '散步二館', '台南店'], excluded: [], mapping: DEFAULT_MAPPING, staff: [], allStaff: [] },
+  settings: { stores: [], excluded: [], orderMapping: DEFAULT_ORDER_MAPPING, staff: [], allStaff: [] },
   view: null,
 
   async reload() {
     ctx.db = await ctx.backend.call('read', { sheets: SHEETS });
     const kv = Object.fromEntries(ctx.db['設定'].map((r) => [r['項目'], r['值']]));
     const parse = (v, d) => { try { return v ? JSON.parse(v) : d; } catch { return d; } };
-    const allStaff = ctx.db['養護師'].map((r) => ({ name: r['姓名'], aliases: split(r['別名']), store: r['所屬門店'], active: r['在職狀態'] !== '離職' }));
+    const allStaff = ctx.db['養護師'].map((r) => ({
+      name: r['姓名'], aliases: split(r['別名']), nicknames: split(r['暱稱']), store: r['所屬門店'],
+      active: r['在職狀態'] !== '離職', compare: r['納入比較'] !== '否',
+    }));
     ctx.settings = {
-      stores: parse(kv['門店'], ['本館', '散步二館', '台南店']),
+      stores: parse(kv['門店'], []),
       excluded: parse(kv['固定排除'], []),
-      mapping: parse(kv['匯入欄位對應'], DEFAULT_MAPPING),
+      orderMapping: parse(kv['訂單欄位對應'], DEFAULT_ORDER_MAPPING),
+      surveyMapping: parse(kv['問卷欄位對應'], null),
+      categoryMap: parse(kv['類別對照'], DEFAULT_CATEGORY_MAP),
+      envKeywords: parse(kv['環境類關鍵字'], DEFAULT_ENV_KEYWORDS),
+      anonymous: parse(kv['未指名用語'], DEFAULT_ANONYMOUS),
+      metric: { ...DEFAULT_METRIC_SETTINGS, ...parse(kv['指標設定'], {}) },
       staff: allStaff.filter((p) => p.active),
       allStaff,
     };
@@ -44,7 +55,7 @@ export const ctx = {
     ctx.view = view;
     $$('.view').forEach((el) => (el.hidden = el.id !== `view-${view}`));
     $$('#nav a[data-view]').forEach((a) => a.classList.toggle('on', a.dataset.view === view || (view === 'detail' && a.dataset.view === 'month')));
-    ({ month: monthView, detail: monthView, import: importView, advance: advanceView, statement: statementView, quarter: quarterView, settings: settingsView }[view])
+    ({ month: monthView, detail: monthView, import: importView, survey: surveyView, advance: advanceView, statement: statementView, quarter: quarterView, settings: settingsView }[view])
       .show(ctx, view === 'detail' ? { detail: arg } : arg);
     window.scrollTo(0, 0);
   },
@@ -59,6 +70,7 @@ async function start() {
   status('讀取中…');
   try {
     try { await ctx.reload(); } catch (e) {
+      if (/不允許的分頁/.test(e.message)) throw new Error('Google Apps Script 程式還是舊版，請依 DEPLOY.md「更新 Code.gs」重新貼上並部署新版本');
       if (!/初始化/.test(e.message)) throw e;
       await ctx.backend.call('init');
       await ctx.reload();
@@ -72,7 +84,7 @@ async function start() {
 }
 
 $$('#nav a[data-view]').forEach((a) => a.addEventListener('click', () => ctx.db && ctx.go(a.dataset.view)));
-[importView, monthView, advanceView, statementView, quarterView].forEach((v) => v.init?.(ctx));
+[importView, surveyView, monthView, advanceView, statementView, quarterView].forEach((v) => v.init?.(ctx));
 
 // ---------------- 設定頁 ----------------
 const settingsView = {
@@ -82,13 +94,35 @@ const settingsView = {
     $('#set-token').value = conn.token || '';
     if (!c.db) return;
     $('#set-stores').value = c.settings.stores.join(', ');
-    $('#set-staff').value = c.settings.staff.map((p) => [p.name, ...p.aliases].join(', ')).join('\n');
+    renderStaffEditor(c.settings.staff);
     $('#set-excluded').value = c.settings.excluded.join(', ');
+    $('#set-env').value = c.settings.envKeywords.join(', ');
     renderParams();
-    $('#map-table').innerHTML = `<thead><tr><th>系統欄位</th><th>報表欄位</th></tr></thead><tbody>${
-      SUMMARY_FIELDS.map((f) => `<tr><td>${esc(f.label)}</td><td>${esc(c.settings.mapping[f.key] || '（不使用）')}</td></tr>`).join('')}</tbody>`;
+    $('#map-table').innerHTML = `<thead><tr><th>系統欄位</th><th>神美欄位</th></tr></thead><tbody>${
+      ORDER_FIELDS.map((f) => `<tr><td>${esc(f.label)}</td><td>${esc(c.settings.orderMapping[f.key] || '（不使用）')}</td></tr>`).join('')}</tbody>`;
   },
 };
+
+// 養護師名單編輯表：顯示名稱、別名（神美工作人員名稱）、暱稱（問卷用）、納入比較
+function renderStaffEditor(staff) {
+  const rows = staff.length ? staff : [{ name: '', aliases: [], nicknames: [], compare: true }];
+  $('#staff-editor').innerHTML = `<thead><tr><th>顯示名稱</th><th>神美上的名稱（別名）</th><th>問卷暱稱</th><th>納入比較</th><th></th></tr></thead><tbody>${
+    rows.map((p) => staffRow(p)).join('')}</tbody>`;
+  bindStaffRows();
+}
+const staffRow = (p) => `<tr>
+  <td><input class="se-name" value="${esc(p.name)}" placeholder="例：小美"></td>
+  <td><input class="se-alias" value="${esc(p.aliases.join(', '))}" placeholder="神美上的名字"></td>
+  <td><input class="se-nick" value="${esc(p.nicknames.join(', '))}" placeholder="客人可能寫的暱稱"></td>
+  <td><input type="checkbox" class="se-cmp" ${p.compare ? 'checked' : ''}></td>
+  <td><button class="mini se-del">刪除</button></td></tr>`;
+function bindStaffRows() {
+  $$('.se-del').forEach((b) => { b.onclick = () => b.closest('tr').replaceWith(); });
+}
+$('#staff-add').addEventListener('click', () => {
+  $('#staff-editor tbody').insertAdjacentHTML('beforeend', staffRow({ name: '', aliases: [], nicknames: [], compare: true }));
+  bindStaffRows();
+});
 
 function renderParams() {
   const versions = paramVersions(ctx.db['參數']);
@@ -122,17 +156,22 @@ $('#conn-save').addEventListener('click', async () => {
 $('#set-save').addEventListener('click', async () => {
   const stores = split($('#set-stores').value);
   const excluded = split($('#set-excluded').value);
-  const staff = $('#set-staff').value.split('\n').map(split).filter((a) => a.length).map(([name, ...aliases]) => ({ name, aliases }));
+  const envKeywords = split($('#set-env').value);
+  const staff = $$('#staff-editor tbody tr').map((tr) => ({
+    name: tr.querySelector('.se-name').value.trim(), aliases: split(tr.querySelector('.se-alias').value),
+    nicknames: split(tr.querySelector('.se-nick').value), compare: tr.querySelector('.se-cmp').checked,
+  })).filter((p) => p.name);
   if (!stores.length) return alert('至少要有一家門店');
   const names = new Set(staff.map((p) => p.name));
+  if (names.size !== staff.length) return alert('顯示名稱不可重複');
   const rows = [
-    ...staff.map((p) => ({ 姓名: p.name, 別名: p.aliases.join(', '), 在職狀態: '在職' })),
+    ...staff.map((p) => ({ 姓名: p.name, 別名: p.aliases.join(', '), 暱稱: p.nicknames.join(', '), 納入比較: p.compare ? '是' : '否', 在職狀態: '在職' })),
     ...ctx.db['養護師'].filter((r) => !names.has(r['姓名']) && r['在職狀態'] !== '離職').map((r) => ({ 姓名: r['姓名'], 在職狀態: '離職' })),
   ];
   try {
     await ctx.write([
       { action: 'upsert', payload: { sheet: '養護師', keys: ['姓名'], rows } },
-      { action: 'upsert', payload: { sheet: '設定', keys: ['項目'], rows: [{ 項目: '門店', 值: JSON.stringify(stores) }, { 項目: '固定排除', 值: JSON.stringify(excluded) }] } },
+      { action: 'upsert', payload: { sheet: '設定', keys: ['項目'], rows: [{ 項目: '門店', 值: JSON.stringify(stores) }, { 項目: '固定排除', 值: JSON.stringify(excluded) }, { 項目: '環境類關鍵字', 值: JSON.stringify(envKeywords) }] } },
     ], { 動作: '修改設定', 內容: `養護師：${[...names].join('、')}；固定排除：${excluded.join('、')}；門店：${stores.join('、')}` });
     alert('已儲存');
     settingsView.show(ctx);
@@ -163,8 +202,8 @@ $('#p-add').addEventListener('click', async () => {
 
 $('#map-reset').addEventListener('click', async () => {
   if (!confirm('還原為預設欄位對應？')) return;
-  await ctx.write([{ action: 'upsert', payload: { sheet: '設定', keys: ['項目'], rows: [{ 項目: '匯入欄位對應', 值: JSON.stringify(DEFAULT_MAPPING) }] } }],
-    { 動作: '修改設定', 內容: '匯入欄位對應還原為預設' });
+  await ctx.write([{ action: 'upsert', payload: { sheet: '設定', keys: ['項目'], rows: [{ 項目: '訂單欄位對應', 值: JSON.stringify(DEFAULT_ORDER_MAPPING) }] } }],
+    { 動作: '修改設定', 內容: '神美訂單欄位對應還原為預設' });
   settingsView.show(ctx);
 });
 
