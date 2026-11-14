@@ -75,7 +75,7 @@ export function buildCard(def, cur, prev, extra = {}) {
     } else {
       const d = Math.round(v - pv);
       const dir = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
-      diff = { dir, text: dir === 'flat' ? '與上月持平' : `${fmt(Math.abs(d))} ${def.unit}` };
+      diff = { dir, text: dir === 'flat' ? '與上月持平' : `${dir === 'up' ? '多' : '少'} ${fmt(Math.abs(d))} ${def.unit}` };
     }
   }
   const small = !!(c && typeof c === 'object' && c.smallSample);

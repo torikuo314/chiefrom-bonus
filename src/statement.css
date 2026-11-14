@@ -242,3 +242,4 @@
 .mr-medal { width: 100%; text-align: center; }
 .mr-rank-text { width: 100%; text-align: center; }
 .mr-rankbox, .mr-rankbox * { box-shadow: none !important; border: 0 !important; text-decoration: none !important; }
+.mr-card .mr-diff .mr-face { font-size: 22px !important; line-height: 1 !important; color: inherit !important; letter-spacing: 0 !important; margin-right: 2px; }

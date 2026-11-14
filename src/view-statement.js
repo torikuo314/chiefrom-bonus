@@ -107,7 +107,7 @@ function sheetHtml(d) {
     ${d.cards.map((c) => `<div class="mr-card${c.best ? ' is-best' : ''}${c.ranked ? ' ranked' : ''}">
       <span>${c.label}</span>
       <b class="${c.pending ? 'pending' : ''}">${esc(c.value)}${c.unit ? `<small> ${c.unit}</small>` : ''}${c.small ? '<sup>*</sup>' : ''}</b>
-      <em class="mr-diff">${c.diff ? `${c.diff.dir === 'flat' ? '' : `<span class="mr-arrow ${c.diff.dir}">${c.diff.dir === 'up' ? '↑' : '↓'}</span>`}${esc(c.diff.text)}` : '&nbsp;'}</em>
+      <em class="mr-diff">${c.diff ? `<span class="mr-face">${{ up: '😄', down: '😢', flat: '🙂' }[c.diff.dir]}</span>${esc(c.diff.text)}` : '&nbsp;'}</em>
       <div class="mr-tags">${c.best ? '<span class="mr-best">🎉 個人新高</span>' : ''}</div>
       ${c.note ? `<i>${esc(c.note)}</i>` : ''}
       ${c.ranked ? `<div class="mr-rankbox ${c.rank ? 'top' : ''}">${c.rank

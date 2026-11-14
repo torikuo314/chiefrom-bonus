@@ -23,13 +23,13 @@ test('近 6 個月跨年', () => {
 test('指標卡：本月數值＋與自己上月比較', () => {
   const by = Object.fromEntries(CARD_DEFS.map((d) => [d.key, buildCard(d, cur, prev)]));
   assert.equal(by.avgTicket.value, '4,200');
-  assert.equal(by.avgTicket.diff.text, '200 元');
+  assert.equal(by.avgTicket.diff.text, '多 200 元');
   assert.equal(by.avgTicket.diff.dir, 'up');
-  assert.equal(by.customers.diff.text, '3 人');
+  assert.equal(by.customers.diff.text, '少 3 人');
   assert.equal(by.customers.diff.dir, 'down');
   assert.equal(by.productCustomers.value, '12');
   assert.equal(by.productCustomers.unit, '位客人');
-  assert.equal(by.productCustomers.diff.text, '3 位客人');
+  assert.equal(by.productCustomers.diff.text, '多 3 位客人');
   assert.equal(by.returnRate.diff.text, '多 2 人次回流'); // 用人次表達
   assert.equal(by.returnRate.diff.dir, 'up');
   assert.equal(by.returnRate.small, true);
