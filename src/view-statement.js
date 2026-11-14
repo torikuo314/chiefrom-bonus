@@ -2,7 +2,7 @@
 // 內容只來自 buildStatement()：含本月預估獎金、本季已預支；不含比例、級距業績、店內平均數字、排名。
 import { $, $$, esc, fmt } from './ui.js';
 import { buildStatement, topRanks, RANKED_KEYS } from './statement.js';
-import { metricsOf, praiseOf, prevMonthOf, ranksOf } from './analytics.js';
+import { metricsOf, praiseOf, prevMonthOf, ranksOf, historyOf } from './analytics.js';
 import { css, capture, downloadZip, renderPreviews } from './export.js';
 
 let ctx;
@@ -54,6 +54,7 @@ async function make() {
       const data = buildStatement(ctx.db['月業績'], name, month, params, ctx.db['預支'], {
         cur: metricsOf(ctx, name, month), prev: metricsOf(ctx, name, prevMonthOf(month)),
         ranks: ranks[name] || {}, praise: praiseOf(ctx, name, [month]), returnDays: ctx.settings.metric.returnDays,
+        history: historyOf(ctx, name, month, 12),
       });
       results.push({ name, ...(await renderSheet(data)) });
     }
@@ -70,7 +71,39 @@ async function make() {
 const fileName = (name, ext) => `${month}_${name}_個人經營月報.${ext}`;
 
 // ---------------- 月報版面 ----------------
-const wan = (v) => (v >= 10000 ? `${+(v / 10000).toFixed(1)} 萬` : fmt(v));
+const wan = (v) => (v >= 10000 ? `${+(v / 10000).toFixed(1)}萬` : fmt(v));
+
+/** 指標卡上的近 6 個月小走勢：先放 canvas，插入頁面後再畫（html2canvas 對 canvas 最穩定）。 */
+const sparkline = (values) => (values.filter((x) => x != null).length >= 2
+  ? `<canvas class="mr-spark" width="224" height="60" data-spark='${JSON.stringify(values)}'></canvas>` : '<div class="mr-spark-empty"></div>');
+
+function drawSparks(root) {
+  root.querySelectorAll('canvas.mr-spark').forEach((cv) => {
+    const values = JSON.parse(cv.dataset.spark);
+    const c = cv.getContext('2d');
+    c.scale(2, 2);
+    const W = 112, H = 30, pad = 4;
+    const pts = values.map((v, i) => [i, v]).filter(([, v]) => v != null);
+    const vs = pts.map(([, v]) => v);
+    const min = Math.min(...vs), max = Math.max(...vs);
+    const x = (i) => pad + (i * (W - pad * 2)) / (values.length - 1);
+    const y = (v) => (max === min ? H / 2 : H - pad - ((v - min) * (H - pad * 2)) / (max - min));
+    const color = css('--chart-1');
+    c.beginPath();
+    c.moveTo(x(pts[0][0]), H);
+    pts.forEach(([i, v]) => c.lineTo(x(i), y(v)));
+    c.lineTo(x(pts.at(-1)[0]), H);
+    c.closePath();
+    c.fillStyle = 'rgba(94,116,89,.13)';
+    c.fill();
+    c.beginPath();
+    pts.forEach(([i, v], k) => (k ? c.lineTo(x(i), y(v)) : c.moveTo(x(i), y(v))));
+    c.strokeStyle = color; c.lineWidth = 1.8; c.lineJoin = 'round'; c.lineCap = 'round';
+    c.stroke();
+    const [li, lv] = pts.at(-1);
+    c.beginPath(); c.arc(x(li), y(lv), 3, 0, Math.PI * 2); c.fillStyle = color; c.fill();
+  });
+}
 
 function sheetHtml(d) {
   const [y, m] = d.month.split('-');
@@ -81,12 +114,13 @@ function sheetHtml(d) {
   </header>
   <section class="mr-top">
     <div class="mr-who"><h1>${esc(d.name)}</h1><p>${y} 年 ${Number(m)} 月</p></div>
-    <div class="mr-sales"><span>本月業績</span><b><small>NT$</small> ${fmt(d.sales)}</b></div>
+    <div class="mr-sales"><span>本月業績${d.salesBest ? '<em class="mr-best">🎉 個人新高</em>' : ''}</span><b><small>NT$</small> ${fmt(d.sales)}</b></div>
   </section>
   <section class="st-progress mr-progress">
     <div class="st-track">
       <div class="st-fill" style="width:${d.progress.percent}%"></div>
       ${d.progress.marks.map((k) => `<i class="st-mark" style="left:${k.percent}%"></i>`).join('')}
+      <i class="mr-dot" style="left:${d.progress.percent}%"></i>
     </div>
     <div class="st-marklabels">${d.progress.marks.map((k) => `<span style="left:${k.percent}%">${k.label}</span>`).join('')}</div>
     <p class="st-progress-text">${esc(d.progress.text)}</p>
@@ -98,24 +132,25 @@ function sheetHtml(d) {
   </section>
 
   <section class="mr-cards">
-    ${d.cards.map((c) => `<div class="mr-card">
+    ${d.cards.map((c) => `<div class="mr-card${c.best ? ' is-best' : ''}">
       <span>${c.label}</span>
       <b class="${c.pending ? 'pending' : ''}">${esc(c.value)}${c.unit ? `<small> ${c.unit}</small>` : ''}${c.small ? '<sup>*</sup>' : ''}</b>
       <em class="${c.diff ? c.diff.dir : ''}">${c.diff ? esc(c.diff.text) : '&nbsp;'}</em>
-      ${c.rank ? `<span class="mr-rank">店內第 ${c.rank} 名</span>` : ''}
+      ${sparkline(c.spark)}
+      <div class="mr-tags">${c.best ? '<span class="mr-best">🎉 個人新高</span>' : ''}${c.rank ? `<span class="mr-rank">店內第 ${c.rank} 名</span>` : ''}</div>
       ${c.note ? `<i>${esc(c.note)}</i>` : ''}
     </div>`).join('')}
   </section>
-  ${d.smallSampleNote ? '<p class="mr-foot-note">* 樣本數少，僅供參考</p>' : ''}
+  <p class="mr-foot-note">↑↓ 為與上月比較・小線圖為近 6 個月走勢${d.smallSampleNote ? '・* 樣本數少，僅供參考' : ''}</p>
 
   <section class="st-chart mr-trend">
     <h2>近 6 個月業績</h2>
-    <canvas class="c-trend" width="666" height="220"></canvas>
+    <canvas class="c-trend" width="666" height="${d.praise ? 240 : 430}"></canvas>
   </section>
 
   ${d.praise ? `<section class="mr-praise">
     <h2>客人怎麼說 <span>本月被客人點名 ${d.praise.mentions} 次</span></h2>
-    ${d.praise.quotes.map((q) => `<blockquote>「${esc(q.length > 56 ? q.slice(0, 54) + '…' : q)}」</blockquote>`).join('')}
+    <div class="mr-quotes">${d.praise.quotes.map((q) => `<blockquote><i>“</i>${esc(q.length > 60 ? q.slice(0, 58) + '…' : q)}</blockquote>`).join('')}</div>
   </section>` : ''}
   <footer class="st-foot">頭沐 | CHIEFROM</footer>`;
 }
@@ -127,39 +162,63 @@ async function renderSheet(d) {
   $('#s-stage').appendChild(sheet);
   const charts = [];
   const ink = css('--ink-soft');
-  const font = { family: css('--font-sans') || 'sans-serif', size: 12 };
+  const font = { family: css('--font-sans') || 'sans-serif', size: 13 };
   try {
+    drawSparks(sheet);
     const last = d.trend.length - 1;
-    charts.push(new Chart(sheet.querySelector('.c-trend'), {
-      type: 'line',
+    const canvas = sheet.querySelector('.c-trend');
+    canvas.style.height = `${canvas.height}px`;
+    const maxV = Math.max(...d.trend.map((t) => t.sales || 0), d.progress.T2) * 1.12;
+    charts.push(new Chart(canvas, {
+      type: 'bar',
       data: {
         labels: d.trend.map((t) => `${Number(t.month.slice(5))} 月`),
         datasets: [{
-          data: d.trend.map((t) => t.sales), borderColor: css('--chart-1'), borderWidth: 2, tension: 0.25, spanGaps: false,
-          pointRadius: d.trend.map((_, i) => (i === last ? 5 : 4)), pointBackgroundColor: css('--chart-1'), pointBorderColor: css('--surface'), pointBorderWidth: 2,
+          data: d.trend.map((t) => t.sales),
+          backgroundColor: d.trend.map((_, i) => (i === last ? css('--chart-1') : '#c9d4c4')),
+          borderRadius: { topLeft: 6, topRight: 6 }, borderSkipped: 'bottom', barPercentage: 0.62, categoryPercentage: 0.9,
         }],
       },
       options: {
-        responsive: false, animation: false, devicePixelRatio: 2, layout: { padding: { top: 24, right: 24 } },
+        responsive: false, animation: false, devicePixelRatio: 2, layout: { padding: { top: 26, right: 70 } },
         plugins: { legend: { display: false }, tooltip: { enabled: false } },
         scales: {
-          x: { grid: { display: false }, border: { color: css('--line') }, ticks: { color: ink, font } },
-          y: { beginAtZero: true, grid: { color: css('--chart-grid') }, border: { display: false }, ticks: { color: ink, font, maxTicksLimit: 4, callback: (v) => wan(v) } },
+          x: { grid: { display: false }, border: { color: css('--line') }, ticks: { color: css('--ink'), font: { ...font, weight: '500' } } },
+          y: { display: false, beginAtZero: true, max: maxV },
         },
       },
       plugins: [{
-        id: 'lastLabel',
-        afterDatasetsDraw(chart) {
-          const pt = chart.getDatasetMeta(0).data[last];
-          const v = d.trend[last].sales;
-          if (!pt || v == null) return;
+        id: 'labelsAndGoals',
+        beforeDatasetsDraw(chart) {
+          // 門檻虛線畫在長條後面（不標金額）
           const c = chart.ctx;
-          c.save();
-          c.fillStyle = css('--ink');
-          c.font = `600 12px ${font.family}`;
-          c.textAlign = 'center';
-          c.fillText(fmt(v), pt.x, pt.y - 10);
-          c.restore();
+          const { left, right } = chart.chartArea;
+          for (const [label, v] of [['第一門檻', d.progress.T1], ['第二門檻', d.progress.T2]]) {
+            const yy = chart.scales.y.getPixelForValue(v);
+            c.save();
+            c.strokeStyle = ink; c.setLineDash([4, 4]); c.lineWidth = 1;
+            c.beginPath(); c.moveTo(left, yy); c.lineTo(right, yy); c.stroke();
+            c.setLineDash([]); c.fillStyle = ink; c.font = `500 11px ${font.family}`; c.textAlign = 'left'; c.textBaseline = 'middle';
+            c.fillText(label, right + 8, yy);
+            c.restore();
+          }
+        },
+        afterDatasetsDraw(chart) {
+          const c = chart.ctx;
+          chart.getDatasetMeta(0).data.forEach((bar, i) => {
+            const v = d.trend[i].sales;
+            if (v == null) return;
+            const text = wan(v);
+            c.save();
+            c.font = `${i === last ? 700 : 500} ${i === last ? 14 : 12}px ${font.family}`;
+            c.textAlign = 'center'; c.textBaseline = 'bottom';
+            const w = c.measureText(text).width + 8;
+            c.fillStyle = css('--surface');
+            c.fillRect(bar.x - w / 2, bar.y - 24, w, 18);
+            c.fillStyle = i === last ? css('--ink') : ink;
+            c.fillText(text, bar.x, bar.y - 7);
+            c.restore();
+          });
         },
       }],
     }));

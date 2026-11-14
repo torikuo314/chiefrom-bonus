@@ -57,12 +57,17 @@ export function praiseOf(ctx, name, months, field = '讚美勾選') {
 export const prevMonthOf = (m) => addMonths(m, -1);
 
 /** 某月「納入比較」者在指定指標的前三名：{ 姓名: { 指標: 名次 } }。 */
-export function ranksOf(ctx, month, keys, topRanks) {
+export function ranksOf(ctx, month, keyMap, topRanks) {
   const cmp = ctx.settings.staff.filter((p) => p.compare);
   const out = {};
-  for (const key of keys) {
-    const entries = cmp.map((p) => { const m = metricsOf(ctx, p.name, month)[key]; return { name: p.name, value: m && typeof m === 'object' ? m.value : m }; });
+  for (const [key, by] of Object.entries(keyMap)) {
+    const entries = cmp.map((p) => { const m = metricsOf(ctx, p.name, month)[by]; return { name: p.name, value: m && typeof m === 'object' ? m.value : m }; });
     for (const [name, rank] of Object.entries(topRanks(entries))) (out[name] ??= {})[key] = rank;
   }
   return out;
+}
+
+/** 某人近 n 個月的指標（舊→新，最後一個是 month）。 */
+export function historyOf(ctx, name, month, n = 12) {
+  return Array.from({ length: n }, (_, i) => addMonths(month, i - n + 1)).map((m) => metricsOf(ctx, name, m));
 }

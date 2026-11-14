@@ -116,6 +116,13 @@ export function staffMonthMetrics(index, staff, month, settings = DEFAULT_METRIC
     productRatio: designerSales ? sum(designer.filter((r) => r.type === '商品')) / designerSales : null, // 6.
     addonRate: ratio(addonOrders.size, designerOrders.size, settings),      // 7.
     orders: designerOrders.size,
+    // 使用者決定：月報改用次數呈現（較具體、較有激勵感），排名仍用比例以求公平
+    productCustomers: new Set(designer.filter((r) => r.type === '商品').map((r) => r.customer || `#${r.orderNo}`)).size,
+    productCustomerRate: (() => {
+      const all = new Set(designer.map((r) => r.customer || `#${r.orderNo}`)).size;
+      return all ? new Set(designer.filter((r) => r.type === '商品').map((r) => r.customer || `#${r.orderNo}`)).size / all : null;
+    })(),
+    addonCount: addonOrders.size,
     mix: designer.reduce((m, r) => ((m[r.type] = (m[r.type] || 0) + r.amount), m), {}),
     // 內部指標
     newCustomers: [...index.firstDesigners].filter(([, f]) => monthOf(f.date) === month && f.designers.has(staff)).length,

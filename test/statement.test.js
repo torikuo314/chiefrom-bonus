@@ -10,11 +10,11 @@ const rows = [
   { 月份: '2099-03', 養護師: '乙乙', 業績: '999999' },
 ];
 const cur = {
-  avgTicket: 4200, customers: 30, productRatio: 0.12,
+  avgTicket: 4200, customers: 30, productCustomers: 12, addonCount: 15,
   returnRate: { value: 0.55, smallSample: true, pending: false, baseMonth: '2099-01' },
   addonRate: { value: 0.3 }, mix: { 草本染髮: 90000, 頭皮護理: 30000, 商品: 18000, 加購服務: 2000, 低敏染髮: 10000 },
 };
-const prev = { avgTicket: 4000, customers: 33, productRatio: 0.1, returnRate: { value: 0.6 }, addonRate: { value: 0.3 } };
+const prev = { avgTicket: 4000, customers: 33, productCustomers: 9, addonCount: 15, returnRate: { value: 0.6 } };
 
 test('近 6 個月跨年', () => {
   assert.deepEqual(lastMonths('2099-02', 6), ['2098-09', '2098-10', '2098-11', '2098-12', '2099-01', '2099-02']);
@@ -23,15 +23,16 @@ test('近 6 個月跨年', () => {
 test('指標卡：本月數值＋與自己上月比較', () => {
   const by = Object.fromEntries(CARD_DEFS.map((d) => [d.key, buildCard(d, cur, prev)]));
   assert.equal(by.avgTicket.value, '4,200');
-  assert.equal(by.avgTicket.diff.text, '較上月 ↑ 200 元');
-  assert.equal(by.customers.diff.text, '較上月 ↓ 3 人');
+  assert.equal(by.avgTicket.diff.text, '↑ 200 元');
+  assert.equal(by.customers.diff.text, '↓ 3 人');
   assert.equal(by.customers.diff.dir, 'down');
-  assert.equal(by.productRatio.value, '12%');
-  assert.equal(by.productRatio.diff.text, '較上月 ↑ 2 個百分點');
-  assert.equal(by.returnRate.diff.text, '較上月 ↓ 5 個百分點');
+  assert.equal(by.productCustomers.value, '12');
+  assert.equal(by.productCustomers.unit, '位客人');
+  assert.equal(by.productCustomers.diff.text, '↑ 3 位客人');
+  assert.equal(by.returnRate.diff.text, '↓ 5 個百分點');
   assert.equal(by.returnRate.small, true);
   assert.equal(buildCard(CARD_DEFS[2], { returnRate: { value: 0.5 } }, { returnRate: { pending: true } }).diff, null); // 上月資料累積中 → 不比較
-  assert.equal(by.addonRate.diff.text, '與上月持平');
+  assert.equal(by.addonCount.diff.text, '與上月持平');
   assert.equal(buildCard(CARD_DEFS[2], { returnRate: { pending: true } }, null).value, '資料累積中');
   assert.equal(CARD_DEFS.length, 5);
 });
@@ -60,15 +61,29 @@ test('月報內容', () => {
 test('店內前三名：同分同名次、0% 不排名、第 4 名以後不顯示', () => {
   const r = topRanks([{ name: 'a', value: 0.3 }, { name: 'b', value: 0.3 }, { name: 'c', value: 0.2 }, { name: 'd', value: 0.1 }, { name: 'e', value: 0 }, { name: 'f', value: null }]);
   assert.deepEqual(r, { a: 1, b: 1, c: 3 });
-  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev, ranks: { productRatio: 2 } });
-  assert.equal(s.cards.find((c) => c.key === 'productRatio').rank, 2);
-  assert.equal(s.cards.find((c) => c.key === 'addonRate').rank, null);
+  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev, ranks: { productCustomers: 2 } });
+  assert.equal(s.cards.find((c) => c.key === 'productCustomers').rank, 2);
+  assert.equal(s.cards.find((c) => c.key === 'addonCount').rank, null);
+});
+
+test('個人新高與 6 個月走勢', async () => {
+  const { isPersonalBest } = await import('../src/statement.js');
+  assert.equal(isPersonalBest(10, [5, 8, 9]), true);
+  assert.equal(isPersonalBest(9, [5, 8, 9]), false);   // 持平不算
+  assert.equal(isPersonalBest(10, [null, 8, 9]), false); // 紀錄不足 3 個月
+  assert.equal(isPersonalBest(0, [0, 0, 0]), false);
+  const hist = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20].map((n) => ({ productCustomers: n }));
+  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur: { ...cur, productCustomers: 20 }, prev, history: hist });
+  const c = s.cards.find((x) => x.key === 'productCustomers');
+  assert.equal(c.best, true);
+  assert.deepEqual(c.spark, [11, 12, 13, 14, 15, 20]);
+  assert.equal('history' in c, false);
 });
 
 test('不含比例、級距業績或店內平均', () => {
   const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev });
   const json = JSON.stringify(s);
-  for (const banned of ['tier', 'R1', 'R2', '20000', '"0.2"', '0.3,', '第一級', '第二級', '平均']) {
+  for (const banned of ['tier', 'R1', 'R2', '"0.2"', '0.3,', '第一級', '第二級', '平均', 'bonusRate']) {
     assert.ok(!json.includes(banned), `月報資料不應包含 ${banned}`);
   }
 });
