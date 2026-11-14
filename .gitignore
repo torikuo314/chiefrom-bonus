@@ -1,0 +1,6 @@
+# 任何真實資料一律不進 repo
+*.xlsx
+*.xls
+*.csv
+data/
+private/

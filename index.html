@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>頭沐 | CHIEFROM 業績系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/theme.css">
+<link rel="stylesheet" href="src/app.css">
+<link rel="stylesheet" href="src/statement.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+<header class="top">
+  <h1>頭沐 | CHIEFROM</h1>
+  <nav id="nav">
+    <a data-view="month">月份總覽</a>
+    <a data-view="import">上傳匯入</a>
+    <a data-view="statement">產出明細</a>
+    <a data-view="advance">預支</a>
+    <a data-view="quarter">季結算</a>
+    <a data-view="settings">設定</a>
+  </nav>
+</header>
+
+<main>
+  <p id="conn-status" class="hint"></p>
+
+  <!-- 月份總覽 -->
+  <div id="view-month" class="view" hidden>
+    <section class="card">
+      <div class="row-between">
+        <h2>月份總覽</h2>
+        <label class="inline">月份 <input type="month" id="m-month"></label>
+      </div>
+      <p id="m-lock" class="warn" hidden></p>
+      <div id="m-stats" class="stats"></div>
+      <table id="m-table"></table>
+      <p class="hint">「試算獎金」會以「本月預估獎金」顯示在給養護師的每月業績明細（不含比例與級距業績）。點姓名可查看詳情、調整與確認。</p>
+    </section>
+  </div>
+
+  <!-- 養護師月詳情 -->
+  <div id="view-detail" class="view" hidden>
+    <section class="card">
+      <p><a id="d-back" class="link">← 回月份總覽</a></p>
+      <h2 id="d-title"></h2>
+      <p id="d-lock" class="warn" hidden></p>
+      <div id="d-stats" class="stats"></div>
+      <h3>業績組成</h3>
+      <table id="d-lines"></table>
+    </section>
+    <section class="card">
+      <h3>手動調整</h3>
+      <p class="hint">調整金額會加在報表業績上（可填負數），並重算獎金。必須填寫原因，會記入操作紀錄。</p>
+      <div class="grid2">
+        <label>調整金額（元）<input id="d-adj" type="number" step="1"></label>
+        <label>調整原因 <span class="warn">*</span><input id="d-adj-reason"></label>
+      </div>
+      <button id="d-adj-save">儲存調整</button>
+    </section>
+    <section class="card">
+      <h3>確認狀態</h3>
+      <div class="grid2">
+        <label>狀態<select id="d-status"><option>未確認</option><option>已確認</option><option>有異議</option></select></label>
+        <label>確認方式<select id="d-method"><option value="">—</option><option>LINE</option><option>紙本</option></select></label>
+        <label>確認日期<input id="d-date" type="date"></label>
+        <label>備註<input id="d-note"></label>
+      </div>
+      <button id="d-status-save" class="primary">儲存確認狀態</button>
+    </section>
+  </div>
+
+  <!-- 上傳匯入 -->
+  <div id="view-import" class="view" hidden>
+    <section class="card">
+      <h2>1. 上傳月報表</h2>
+      <p class="hint">檔案只在你的瀏覽器裡讀取，不會上傳到任何第三方。</p>
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
+        <span>把 POS 匯出檔拖放到這裡，或點此選擇（可一次選多家門店）</span>
+      </label>
+      <div id="files"></div>
+    </section>
+    <section id="step-map" class="card" hidden>
+      <h2>2. 欄位對應</h2>
+      <p class="hint">這個檔案的欄位名稱和上次的設定對不上，請重新指定。設定會存起來，下次自動套用。</p>
+      <div id="map-form" class="grid2"></div>
+      <button id="map-save" class="primary">套用並記住</button>
+    </section>
+    <section id="step-preview" class="card" hidden>
+      <h2>3. 匯入預覽</h2>
+      <div id="month-pick"></div>
+      <div id="summary" class="stats"></div>
+      <h3>各養護師業績</h3>
+      <table id="staff-table"></table>
+      <div id="pending-wrap" hidden>
+        <h3 class="warn">待處理（必須指定歸屬或排除才能匯入）</h3>
+        <table id="pending-table"></table>
+      </div>
+      <details><summary id="excluded-sum"></summary><table id="excluded-table"></table></details>
+      <div class="actions">
+        <button id="do-import" class="primary">確認匯入</button>
+        <span id="import-msg" class="hint"></span>
+      </div>
+    </section>
+  </div>
+
+  <!-- 產出每月業績明細 -->
+  <div id="view-statement" class="view" hidden>
+    <section class="card">
+      <div class="row-between">
+        <h2>產出每月業績明細</h2>
+        <label class="inline">月份 <input type="month" id="s-month"></label>
+      </div>
+      <p class="hint">給養護師看的明細，含本月預估獎金（註明以季結算為準），不含比例與級距業績。</p>
+      <label class="check"><input type="checkbox" id="s-all" checked> 全選</label>
+      <div id="s-list"></div>
+      <div class="actions">
+        <button id="s-make" class="primary">產生明細</button>
+        <button id="s-zip" hidden>全部下載（zip：PNG＋PDF）</button>
+      </div>
+      <div id="s-results"></div>
+    </section>
+    <div id="s-stage" aria-hidden="true"></div>
+  </div>
+
+  <!-- 預支 -->
+  <div id="view-advance" class="view" hidden>
+    <section class="card">
+      <h2>新增預支</h2>
+      <div class="grid2">
+        <label>日期<input id="a-date" type="date"></label>
+        <label>養護師<select id="a-staff"></select></label>
+        <label>金額（元）<input id="a-amount" type="number" min="1" step="1"></label>
+        <label>備註<input id="a-note"></label>
+        <label class="check"><input id="a-signed" type="checkbox"> 已簽預支扣抵同意書</label>
+      </div>
+      <button id="a-add" class="primary">新增</button>
+    </section>
+    <section class="card">
+      <div class="row-between">
+        <h2>預支紀錄</h2>
+        <label class="inline">篩選 <select id="a-filter"></select></label>
+      </div>
+      <p id="a-warn" class="warn" hidden></p>
+      <table id="a-table"></table>
+    </section>
+  </div>
+
+  <!-- 季結算 -->
+  <div id="view-quarter" class="view" hidden>
+    <section class="card">
+      <div class="row-between">
+        <h2>季結算</h2>
+        <label class="inline">季度 <select id="q-sel"></select></label>
+      </div>
+      <p id="q-status"></p>
+      <ul id="q-blockers" hidden></ul>
+      <ul id="q-warnings" hidden></ul>
+      <table id="q-table"></table>
+      <div class="actions">
+        <label class="inline">發放日期 <input type="date" id="q-pay"></label>
+        <button id="q-settle" class="primary">結算並鎖定</button>
+        <button id="q-unlock" hidden>解鎖（需填原因）</button>
+      </div>
+    </section>
+    <section class="card">
+      <h2>季獎金明細</h2>
+      <p class="hint">給養護師的季獎金明細，完整列出各月獎金、預支扣抵與結轉，並附簽收欄。</p>
+      <div class="actions">
+        <button id="q-make" class="primary">產生季獎金明細</button>
+        <button id="q-zip" hidden>全部下載（zip：PNG＋PDF）</button>
+        <span id="q-make-hint" class="hint"></span>
+      </div>
+      <div id="q-results"></div>
+    </section>
+    <div id="q-stage" aria-hidden="true"></div>
+  </div>
+
+  <!-- 設定 -->
+  <div id="view-settings" class="view" hidden>
+    <section class="card">
+      <h2>Google Sheets 連線</h2>
+      <p class="hint">網址與 token 只存在這台裝置的瀏覽器。兩者都留空＝本機測試模式（資料只存在此瀏覽器）。</p>
+      <label>Apps Script 網頁應用程式網址<input id="set-url" placeholder="https://script.google.com/macros/s/…/exec"></label>
+      <label>Token<input id="set-token" type="password" autocomplete="off"></label>
+      <button id="conn-save">儲存並測試連線</button>
+    </section>
+    <section class="card">
+      <h2>門店與人員</h2>
+      <label>門店（逗號分隔，匯入時依此順序預設）<input id="set-stores"></label>
+      <label>養護師（每行一位：姓名, 別名1, 別名2…）<textarea id="set-staff" rows="5"></textarea></label>
+      <p class="hint">從名單移除的人會標記為「離職」，歷史資料保留。</p>
+      <label>固定排除人員（逗號分隔，匯入時自動略過並列在摘要中）<input id="set-excluded"></label>
+      <button id="set-save" class="primary">儲存</button>
+    </section>
+    <section class="card">
+      <h2>獎金參數</h2>
+      <p class="hint">計算某月時，使用「生效月份」不晚於該月的最新版本。已結算鎖定的季度不受影響。</p>
+      <table id="p-table"></table>
+      <h3>新增參數版本</h3>
+      <div class="grid2">
+        <label>生效月份<input id="p-month" type="month"></label>
+        <label>第一級門檻 T1（元）<input id="p-T1" type="number" step="1"></label>
+        <label>第二級門檻 T2（元）<input id="p-T2" type="number" step="1"></label>
+        <label>第一級比例 R1（%）<input id="p-R1" type="number" step="0.1"></label>
+        <label>第二級比例 R2（%）<input id="p-R2" type="number" step="0.1"></label>
+      </div>
+      <button id="p-add">新增版本</button>
+      <p id="p-msg" class="hint"></p>
+    </section>
+    <section class="card">
+      <h2>匯入欄位對應</h2>
+      <table id="map-table"></table>
+      <button id="map-reset">還原為預設對應</button>
+    </section>
+    <section class="card">
+      <h2>操作紀錄</h2>
+      <button id="log-load">載入最近 100 筆</button>
+      <table id="log-table"></table>
+    </section>
+  </div>
+</main>
+
+<script type="module" src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+/* 頭沐 | CHIEFROM 色票與字體：集中於此，方便日後調整 */
+:root {
+  --c-sage: #8f9e8b;      /* 灰綠 */
+  --c-milktea: #c8b39b;   /* 奶茶 */
+  --c-mist: #8fa1b3;      /* 霧藍 */
+  --c-terracotta: #b98a76;/* 陶土 */
+  --c-mauve: #a99aa6;     /* 藕紫 */
+
+  /* 圖表用色：已用 dataviz 驗證器檢查色盲可辨識度（深灰綠＋奶茶靠明度區分） */
+  --chart-1: #5e7459;     /* 深灰綠：服務、趨勢線 */
+  --chart-2: #c9ad8f;     /* 奶茶：商品 */
+  --chart-grid: #ebe6dd;
+
+  --bg: #f6f3ee;
+  --surface: #fffdf9;
+  --ink: #3f3b36;
+  --ink-soft: #7a736a;
+  --line: #e2dcd2;
+  --warn: #a8574a;
+  --ok: #6f8a6a;
+
+  --font-serif: 'Noto Serif TC', serif;
+  --font-sans: 'Noto Sans TC', sans-serif;
+}
