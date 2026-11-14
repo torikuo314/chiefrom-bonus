@@ -49,7 +49,7 @@ async function make() {
     await document.fonts.ready;
     for (const [i, name] of names.entries()) {
       btn.textContent = `產生中… ${i + 1}/${names.length}`;
-      const data = buildStatement(ctx.db['月業績'], name, month, params);
+      const data = buildStatement(ctx.db['月業績'], name, month, params, ctx.db['預支']);
       results.push({ name, ...(await renderSheet(data)) });
     }
     renderResults();
@@ -90,8 +90,11 @@ function sheetHtml(d) {
   <section class="st-hero">
     <span>當月個人業績</span>
     <b><small>NT$</small> ${fmt(d.sales)}</b>
-    <div class="st-bonus"><span>本月預估獎金</span><b>NT$ ${fmt(d.estimatedBonus)}</b></div>
-    <p class="st-bonus-note">預估獎金依當月業績試算，實際發放金額以季結算為準（將扣抵預支款）。</p>
+    <div class="st-bonus-row">
+      <div class="st-bonus"><span>本月預估獎金</span><b>NT$ ${fmt(d.estimatedBonus)}</b></div>
+      ${d.quarterAdvance ? `<div class="st-bonus st-adv"><span>本季已預支</span><b>NT$ ${fmt(d.quarterAdvance)}</b></div>` : ''}
+    </div>
+    <p class="st-bonus-note">預估獎金依當月業績試算${d.quarterAdvance ? `；本季已預支金額（截至 ${Number(d.month.slice(5))} 月）將於季結算時扣抵` : ''}。實際發放金額以季結算為準。</p>
   </section>
   <section class="st-progress">
     <div class="st-track">

@@ -1,6 +1,6 @@
 // 每月業績明細（給養護師）資料整理。純函式。
 // 只顯示「本月預估獎金」（實際以季結算為準）；不顯示比例與第一／二級業績。
-import { targetProgress } from './calc.js';
+import { targetProgress, quarterOf } from './calc.js';
 import { effectiveSales } from './monthly.js';
 
 const n = (v) => (v === '' || v == null ? 0 : Number(String(v).replace(/,/g, '')) || 0);
@@ -17,8 +17,9 @@ export function lastMonths(month, count) {
 
 /**
  * monthlyRows：月業績分頁全部列；params：該月參數（只用 T1、T2 決定進度位置）
+ * advanceRows：預支分頁全部列（用來算本季截至當月的累計預支）
  */
-export function buildStatement(monthlyRows, name, month, params) {
+export function buildStatement(monthlyRows, name, month, params, advanceRows = []) {
   const mine = monthlyRows.filter((r) => r['養護師'] === name);
   const row = mine.find((r) => r['月份'] === month);
   if (!row) throw new Error(`${name} ${month} 沒有月業績資料`);
@@ -34,6 +35,9 @@ export function buildStatement(monthlyRows, name, month, params) {
   return {
     name, month, sales,
     estimatedBonus: n(row['當月獎金']),
+    quarterAdvance: advanceRows
+      .filter((a) => a['養護師'] === name && a['扣抵季度'] === quarterOf(month) && String(a['日期']).slice(0, 7) <= month)
+      .reduce((s, a) => s + n(a['金額']), 0),
     progress: {
       level: p.level,
       text: p.text,

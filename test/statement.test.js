@@ -40,3 +40,15 @@ test('沒有上月資料時不顯示比較', () => {
   assert.equal(s.metrics.momPercent, null);
   assert.equal(s.progress.text, '距第一門檻還差 40,000 元');
 });
+
+test('本季截至當月的累計預支', () => {
+  const adv = [
+    { 養護師: '甲甲', 日期: '2099-01-10', 金額: '5000', 扣抵季度: '2099-Q1' },
+    { 養護師: '甲甲', 日期: '2099-03-02', 金額: '3000', 扣抵季度: '2099-Q1' },
+    { 養護師: '甲甲', 日期: '2099-04-01', 金額: '9999', 扣抵季度: '2099-Q2' }, // 下一季
+    { 養護師: '乙乙', 日期: '2099-02-01', 金額: '7777', 扣抵季度: '2099-Q1' }, // 別人
+  ];
+  assert.equal(buildStatement(rows, '甲甲', '2099-03', P, adv).quarterAdvance, 8000);
+  assert.equal(buildStatement(rows, '甲甲', '2099-02', P, adv).quarterAdvance, 5000); // 3 月的還沒發生
+  assert.equal(buildStatement(rows, '甲甲', '2099-03', P).quarterAdvance, 0);
+});
