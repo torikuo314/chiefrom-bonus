@@ -1,7 +1,7 @@
 // 個人經營月報資料：假資料
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildStatement, buildCard, buildMix, lastMonths, CARD_DEFS } from '../src/statement.js';
+import { buildStatement, buildCard, buildMix, lastMonths, CARD_DEFS, topRanks } from '../src/statement.js';
 
 const P = { T1: 140000, T2: 220000, R1: 0.2, R2: 0.3 };
 const rows = [
@@ -54,12 +54,21 @@ test('月報內容', () => {
   assert.equal(s.trend[4].sales, 100000);
   assert.equal(s.praise.quotes.length, 3); // 最多 3 則
   assert.equal(buildStatement(rows, '甲甲', '2099-03', P, [], { cur, praise: { mentions: 0, quotes: [] } }).praise, null);
+  assert.equal(buildStatement(rows, '甲甲', '2099-03', P, [], { cur, praise: { mentions: 2, quotes: [] } }).praise, null); // 有點名但沒勾選 → 隱藏
 });
 
-test('不含比例、級距業績、排名或店內平均', () => {
-  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev, radar: { sales: 60 } });
+test('店內前三名：同分同名次、0% 不排名、第 4 名以後不顯示', () => {
+  const r = topRanks([{ name: 'a', value: 0.3 }, { name: 'b', value: 0.3 }, { name: 'c', value: 0.2 }, { name: 'd', value: 0.1 }, { name: 'e', value: 0 }, { name: 'f', value: null }]);
+  assert.deepEqual(r, { a: 1, b: 1, c: 3 });
+  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev, ranks: { productRatio: 2 } });
+  assert.equal(s.cards.find((c) => c.key === 'productRatio').rank, 2);
+  assert.equal(s.cards.find((c) => c.key === 'addonRate').rank, null);
+});
+
+test('不含比例、級距業績或店內平均', () => {
+  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev });
   const json = JSON.stringify(s);
-  for (const banned of ['tier', 'R1', 'R2', '20000', '"0.2"', '0.3,', '第一級', '第二級', 'rank', '排名', '平均']) {
+  for (const banned of ['tier', 'R1', 'R2', '20000', '"0.2"', '0.3,', '第一級', '第二級', '平均']) {
     assert.ok(!json.includes(banned), `月報資料不應包含 ${banned}`);
   }
 });

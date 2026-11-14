@@ -55,3 +55,14 @@ export function praiseOf(ctx, name, months, field = '讚美勾選') {
 }
 
 export const prevMonthOf = (m) => addMonths(m, -1);
+
+/** 某月「納入比較」者在指定指標的前三名：{ 姓名: { 指標: 名次 } }。 */
+export function ranksOf(ctx, month, keys, topRanks) {
+  const cmp = ctx.settings.staff.filter((p) => p.compare);
+  const out = {};
+  for (const key of keys) {
+    const entries = cmp.map((p) => { const m = metricsOf(ctx, p.name, month)[key]; return { name: p.name, value: m && typeof m === 'object' ? m.value : m }; });
+    for (const [name, rank] of Object.entries(topRanks(entries))) (out[name] ??= {})[key] = rank;
+  }
+  return out;
+}

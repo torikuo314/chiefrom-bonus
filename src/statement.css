@@ -135,9 +135,10 @@
 .mr-mix-legend li { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 8px; font-size: 13px; }
 .mr-mix-legend i { width: 11px; height: 11px; border-radius: 3px; }
 .mr-mix-legend b { font: 600 14px var(--font-serif); }
-.mr-trend { margin-top: 4px; }
-.mr-trend canvas { width: 666px; height: 140px; }
+.mr-trend { margin-top: 22px; }
+.mr-trend canvas { width: 666px; height: 220px; }
 .mr-bonus-line .st-adv { align-self: center; }
-.mr-praise { margin-top: 4px; }
+.mr-praise { margin-top: 22px; }
 .mr-praise h2 span { font: 400 12px var(--font-sans); color: var(--ink-soft); margin-left: 8px; letter-spacing: 0; }
-.mr-praise blockquote { margin: 3px 0; padding: 2px 12px; border-left: 2px solid var(--mix-2); font-size: 13px; line-height: 1.5; }
+.mr-praise blockquote { margin: 8px 0; padding: 4px 14px; border-left: 3px solid var(--mix-2); font-size: 15px; line-height: 1.6; }
+.mr-card .mr-rank { display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 10px; background: #e6ece3; color: var(--up); font-size: 11.5px; font-weight: 600; letter-spacing: .05em; }

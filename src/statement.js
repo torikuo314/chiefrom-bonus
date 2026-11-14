@@ -1,6 +1,7 @@
 // 個人經營月報（給養護師）資料整理（v2 §8）。純函式。
 // 依使用者決定：顯示「本月預估獎金」與「本季已預支」（註明以季結算為準）；不放確認欄。
-// 不放：比例、第一／二級業績、店內平均數字、排名、指定率、問卷星數、負評、主管回饋。
+// 不放：比例、第一／二級業績、店內平均數字、指定率、問卷星數、負評、主管回饋。
+// 排名：使用者決定只在「商品推薦佔比」「加購服務率」標示店內前三名，其餘不顯示。
 import { targetProgress, quarterOf } from './calc.js';
 import { effectiveSales } from './monthly.js';
 
@@ -30,6 +31,21 @@ export const CARD_DEFS = [
 export const MIX_ORDER = ['草本染髮', '頭皮護理', '護髮', '方案', '商品', '加購服務'];
 
 const val = (m) => (m && typeof m === 'object' ? m.value : m);
+
+export const RANKED_KEYS = ['productRatio', 'addonRate'];
+
+/**
+ * 店內排名（同分同名次：1、1、3）。entries：[{ name, value }]；只回傳前 topN 名且數值 > 0 的名次。
+ */
+export function topRanks(entries, topN = 3) {
+  const valid = entries.filter((e) => e.value != null && e.value > 0);
+  const out = {};
+  for (const e of valid) {
+    const rank = 1 + valid.filter((x) => x.value > e.value).length;
+    if (rank <= topN) out[e.name] = rank;
+  }
+  return out;
+}
 
 /** 指標卡：本月數值＋與自己上月比較。 */
 export function buildCard(def, cur, prev, extra = {}) {
@@ -74,10 +90,10 @@ export function buildStatement(monthlyRows, name, month, params, advanceRows = [
   });
   const p = targetProgress(sales, params);
   const scaleMax = Math.max(params.T2 * 1.15, sales * 1.05);
-  const { cur, prev, radar, praise } = extra;
+  const { cur, prev, praise } = extra;
   const cards = CARD_DEFS.map((d) => {
     const note = d.key === 'returnRate' && cur?.returnRate?.baseMonth ? `${Number(cur.returnRate.baseMonth.slice(5))} 月服務的客人，${extra.returnDays || 60} 天內再回店的比例` : '';
-    return buildCard(d, cur, prev, { note });
+    return buildCard(d, cur, prev, { note, rank: extra.ranks?.[d.key] || null });
   });
   return {
     name, month, sales,
@@ -95,9 +111,8 @@ export function buildStatement(monthlyRows, name, month, params, advanceRows = [
     },
     cards,
     smallSampleNote: cards.some((c) => c.small),
-    radar: radar || null,
-    mix: buildMix(cur?.mix),
     trend,
-    praise: praise && praise.mentions ? { mentions: praise.mentions, quotes: praise.quotes.slice(0, 3) } : null,
+    // 使用者決定：沒有勾選留言時整區隱藏
+    praise: praise && praise.quotes.length ? { mentions: praise.mentions, quotes: praise.quotes.slice(0, 3) } : null,
   };
 }

@@ -1,9 +1,8 @@
 // 產出「個人經營月報」（v2 §8）：A4 直式，下載 PNG／PDF，多人打包 zip。
 // 內容只來自 buildStatement()：含本月預估獎金、本季已預支；不含比例、級距業績、店內平均數字、排名。
 import { $, $$, esc, fmt } from './ui.js';
-import { buildStatement } from './statement.js';
-import { metricsOf, radarOf, praiseOf, prevMonthOf } from './analytics.js';
-import { RADAR_AXES } from './metrics.js';
+import { buildStatement, topRanks, RANKED_KEYS } from './statement.js';
+import { metricsOf, praiseOf, prevMonthOf, ranksOf } from './analytics.js';
 import { css, capture, downloadZip, renderPreviews } from './export.js';
 
 let ctx;
@@ -49,12 +48,12 @@ async function make() {
   $('#s-results').innerHTML = '';
   try {
     await document.fonts.ready;
-    const radar = radarOf(ctx, month);
+    const ranks = ranksOf(ctx, month, RANKED_KEYS, topRanks);
     for (const [i, name] of names.entries()) {
       btn.textContent = `產生中… ${i + 1}/${names.length}`;
       const data = buildStatement(ctx.db['月業績'], name, month, params, ctx.db['預支'], {
         cur: metricsOf(ctx, name, month), prev: metricsOf(ctx, name, prevMonthOf(month)),
-        radar: radar[name], praise: praiseOf(ctx, name, [month]), returnDays: ctx.settings.metric.returnDays,
+        ranks: ranks[name] || {}, praise: praiseOf(ctx, name, [month]), returnDays: ctx.settings.metric.returnDays,
       });
       results.push({ name, ...(await renderSheet(data)) });
     }
@@ -72,8 +71,6 @@ const fileName = (name, ext) => `${month}_${name}_個人經營月報.${ext}`;
 
 // ---------------- 月報版面 ----------------
 const wan = (v) => (v >= 10000 ? `${+(v / 10000).toFixed(1)} 萬` : fmt(v));
-const MIX_COLORS = ['--mix-1', '--mix-2', '--mix-3', '--mix-4', '--mix-5', '--mix-6', '--mix-other'];
-const mixColor = (label, i, items) => css(MIX_COLORS[label === '其他' ? 6 : ['草本染髮', '頭皮護理', '護髮', '方案', '商品', '加購服務'].indexOf(label)] || MIX_COLORS[i]);
 
 function sheetHtml(d) {
   const [y, m] = d.month.split('-');
@@ -105,27 +102,15 @@ function sheetHtml(d) {
       <span>${c.label}</span>
       <b class="${c.pending ? 'pending' : ''}">${esc(c.value)}${c.unit ? `<small> ${c.unit}</small>` : ''}${c.small ? '<sup>*</sup>' : ''}</b>
       <em class="${c.diff ? c.diff.dir : ''}">${c.diff ? esc(c.diff.text) : '&nbsp;'}</em>
+      ${c.rank ? `<span class="mr-rank">店內第 ${c.rank} 名</span>` : ''}
       ${c.note ? `<i>${esc(c.note)}</i>` : ''}
     </div>`).join('')}
   </section>
   ${d.smallSampleNote ? '<p class="mr-foot-note">* 樣本數少，僅供參考</p>' : ''}
 
-  <section class="mr-mid">
-    <div class="mr-radar">
-      <h2>能力雷達</h2>
-      ${d.radar ? '<canvas class="c-radar" width="260" height="196"></canvas><p class="mr-legend"><i class="solid"></i>本人　<i class="dash"></i>店內平均</p>' : '<p class="q-none">資料累積中</p>'}
-    </div>
-    <div class="mr-mix">
-      <h2>服務項目佔比</h2>
-      ${d.mix.total ? `<div class="mr-mix-body"><canvas class="c-mix" width="120" height="120"></canvas>
-        <ul class="mr-mix-legend">${d.mix.items.map((x, i) => `<li><i style="background:${mixColor(x.label, i, d.mix.items)}"></i>${esc(x.label)}<b>${x.percent}%</b></li>`).join('')}</ul></div>`
-        : '<p class="q-none">本月沒有擔任設計師的服務</p>'}
-    </div>
-  </section>
-
   <section class="st-chart mr-trend">
     <h2>近 6 個月業績</h2>
-    <canvas class="c-trend" width="666" height="140"></canvas>
+    <canvas class="c-trend" width="666" height="220"></canvas>
   </section>
 
   ${d.praise ? `<section class="mr-praise">
@@ -144,32 +129,6 @@ async function renderSheet(d) {
   const ink = css('--ink-soft');
   const font = { family: css('--font-sans') || 'sans-serif', size: 12 };
   try {
-    const radarCanvas = sheet.querySelector('.c-radar');
-    if (radarCanvas) {
-      charts.push(new Chart(radarCanvas, {
-        type: 'radar',
-        data: {
-          labels: RADAR_AXES.map((a) => a.label),
-          datasets: [
-            { label: '本人', data: RADAR_AXES.map((a) => d.radar[a.key] ?? 0), borderColor: css('--chart-1'), backgroundColor: 'rgba(94,116,89,.22)', borderWidth: 2, pointRadius: 3, pointBackgroundColor: css('--chart-1') },
-            { label: '店內平均', data: RADAR_AXES.map(() => 50), borderColor: ink, borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0, fill: false },
-          ],
-        },
-        options: {
-          responsive: false, animation: false, devicePixelRatio: 2,
-          plugins: { legend: { display: false }, tooltip: { enabled: false } },
-          scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 25 }, grid: { color: css('--chart-grid') }, angleLines: { color: css('--chart-grid') }, pointLabels: { color: css('--ink'), font: { ...font, size: 13 } } } },
-        },
-      }));
-    }
-    const mixCanvas = sheet.querySelector('.c-mix');
-    if (mixCanvas) {
-      charts.push(new Chart(mixCanvas, {
-        type: 'doughnut',
-        data: { labels: d.mix.items.map((x) => x.label), datasets: [{ data: d.mix.items.map((x) => x.amount), backgroundColor: d.mix.items.map((x, i) => mixColor(x.label, i, d.mix.items)), borderColor: css('--surface'), borderWidth: 2 }] },
-        options: { responsive: false, animation: false, devicePixelRatio: 2, cutout: '62%', plugins: { legend: { display: false }, tooltip: { enabled: false } } },
-      }));
-    }
     const last = d.trend.length - 1;
     charts.push(new Chart(sheet.querySelector('.c-trend'), {
       type: 'line',
