@@ -90,3 +90,54 @@
 .st-adv { padding: 6px 12px; align-self: flex-end; }
 .st-adv span { font-size: 12px; }
 .st-adv b { color: var(--ink-soft); font-size: 17px; }
+
+/* 個人經營月報（v2） */
+.mrsheet { padding: 40px 64px 26px; }
+.mr-top { display: flex; justify-content: space-between; align-items: flex-end; margin: 14px 0 8px; }
+.mr-who h1 { font-size: 30px; }
+.mr-who p { margin: 2px 0 0; color: var(--ink-soft); letter-spacing: .1em; }
+.mr-sales { text-align: right; }
+.mr-sales span { display: block; font-size: 13px; color: var(--ink-soft); letter-spacing: .15em; }
+.mr-sales b { font: 600 42px/1.1 var(--font-serif); }
+.mr-sales small { font-size: 18px; color: var(--ink-soft); margin-right: 4px; }
+.mr-progress { margin-bottom: 10px; }
+.mr-progress .st-marklabels { height: 18px; margin-top: 6px; }
+.mr-bonus-line { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.mr-bonus-line .st-bonus-note { margin: 0; flex: 1; text-align: left; line-height: 1.4; }
+.mr-progress .st-progress-text { margin: 2px 0 0; font-size: 16px; }
+.mr-progress .st-bonus { margin-top: 0; padding: 6px 14px; }
+.mr-progress .st-bonus b { font-size: 20px; }
+.mr-progress .st-adv b { font-size: 15px; }
+
+.mr-cards { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
+.mr-card { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); min-height: 74px; }
+.mr-card:not(:nth-child(3n+1)) { padding-left: 14px; border-left: 1px solid var(--line); }
+.mr-card span { display: block; font-size: 12px; color: var(--ink-soft); letter-spacing: .1em; font-weight: 500; }
+.mr-card b { display: block; font: 600 22px/1.2 var(--font-serif); }
+.mr-card b.pending { font: 500 15px/1.9 var(--font-sans); color: var(--ink-soft); }
+.mr-card b small { font: 400 12px var(--font-sans); color: var(--ink-soft); }
+.mr-card b sup { font-size: 12px; color: var(--ink-soft); }
+.mr-card em { display: block; font-style: normal; font-size: 12px; color: var(--ink-soft); }
+.mr-card em.up { color: var(--up); font-weight: 600; }
+.mr-card em.down { color: var(--down); font-weight: 600; }
+.mr-card i { display: block; font-style: normal; font-size: 10.5px; color: var(--ink-soft); margin-top: 2px; }
+.mr-foot-note { margin: 4px 0 0; font-size: 11px; color: var(--ink-soft); }
+.mr-mid { display: grid; grid-template-columns: 290px 1fr; gap: 20px; margin-top: 8px; }
+.mr-mid h2, .mr-trend h2, .mr-praise h2 { font-size: 15px; margin-bottom: 4px; }
+.mr-radar canvas { width: 260px; height: 196px; display: block; }
+.mr-legend { margin: 0; font-size: 11px; color: var(--ink-soft); }
+.mr-legend i { display: inline-block; width: 18px; height: 0; vertical-align: middle; margin-right: 4px; }
+.mr-legend i.solid { border-top: 2px solid var(--chart-1); }
+.mr-legend i.dash { border-top: 2px dashed var(--ink-soft); margin-left: 8px; }
+.mr-mix-body { display: flex; align-items: center; gap: 18px; margin-top: 14px; }
+.mr-mix canvas { width: 120px; height: 120px; }
+.mr-mix-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; flex: 1; }
+.mr-mix-legend li { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 8px; font-size: 13px; }
+.mr-mix-legend i { width: 11px; height: 11px; border-radius: 3px; }
+.mr-mix-legend b { font: 600 14px var(--font-serif); }
+.mr-trend { margin-top: 4px; }
+.mr-trend canvas { width: 666px; height: 140px; }
+.mr-bonus-line .st-adv { align-self: center; }
+.mr-praise { margin-top: 4px; }
+.mr-praise h2 span { font: 400 12px var(--font-sans); color: var(--ink-soft); margin-left: 8px; letter-spacing: 0; }
+.mr-praise blockquote { margin: 3px 0; padding: 2px 12px; border-left: 2px solid var(--mix-2); font-size: 13px; line-height: 1.5; }

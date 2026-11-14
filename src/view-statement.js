@@ -1,7 +1,9 @@
-// 產出每月業績明細：A4 直式，下載 PNG／PDF，多人打包 zip。
-// 明細內容只來自 buildStatement()：含本月預估獎金，不含比例與級距業績。
+// 產出「個人經營月報」（v2 §8）：A4 直式，下載 PNG／PDF，多人打包 zip。
+// 內容只來自 buildStatement()：含本月預估獎金、本季已預支；不含比例、級距業績、店內平均數字、排名。
 import { $, $$, esc, fmt } from './ui.js';
 import { buildStatement } from './statement.js';
+import { metricsOf, radarOf, praiseOf, prevMonthOf } from './analytics.js';
+import { RADAR_AXES } from './metrics.js';
 import { css, capture, downloadZip, renderPreviews } from './export.js';
 
 let ctx;
@@ -13,7 +15,7 @@ export function init(c) {
   $('#s-month').addEventListener('change', (e) => { month = e.target.value; renderPicker(); });
   $('#s-all').addEventListener('change', (e) => $$('#s-list input').forEach((i) => (i.checked = e.target.checked)));
   $('#s-make').addEventListener('click', make);
-  $('#s-zip').addEventListener('click', () => downloadAll());
+  $('#s-zip').addEventListener('click', () => downloadZip(results, fileName, `${month}_個人經營月報.zip`));
 }
 
 export function show(_c, arg = {}) {
@@ -47,103 +49,125 @@ async function make() {
   $('#s-results').innerHTML = '';
   try {
     await document.fonts.ready;
+    const radar = radarOf(ctx, month);
     for (const [i, name] of names.entries()) {
       btn.textContent = `產生中… ${i + 1}/${names.length}`;
-      const data = buildStatement(ctx.db['月業績'], name, month, params, ctx.db['預支']);
+      const data = buildStatement(ctx.db['月業績'], name, month, params, ctx.db['預支'], {
+        cur: metricsOf(ctx, name, month), prev: metricsOf(ctx, name, prevMonthOf(month)),
+        radar: radar[name], praise: praiseOf(ctx, name, [month]),
+      });
       results.push({ name, ...(await renderSheet(data)) });
     }
-    renderResults();
+    renderPreviews($('#s-results'), results, fileName, `${month} 個人經營月報`);
+    $('#s-zip').hidden = results.length < 2;
   } catch (e) {
     alert('產生失敗：' + e.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = '產生明細';
+    btn.textContent = '產生月報';
   }
 }
 
-function renderResults() {
-  renderPreviews($('#s-results'), results, fileName, `${month} 業績明細`);
-  $('#s-zip').hidden = results.length < 2;
-}
+const fileName = (name, ext) => `${month}_${name}_個人經營月報.${ext}`;
 
-const downloadAll = () => downloadZip(results, fileName, `${month}_每月業績明細.zip`);
-const fileName = (name, ext) => `${month}_${name}_每月業績明細.${ext}`;
-
-// ---------------- 明細版面 ----------------
+// ---------------- 月報版面 ----------------
 const wan = (v) => (v >= 10000 ? `${+(v / 10000).toFixed(1)} 萬` : fmt(v));
+const MIX_COLORS = ['--mix-1', '--mix-2', '--mix-3', '--mix-4', '--mix-5', '--mix-6', '--mix-other'];
+const mixColor = (label, i, items) => css(MIX_COLORS[label === '其他' ? 6 : ['草本染髮', '頭皮護理', '護髮', '方案', '商品', '加購服務'].indexOf(label)] || MIX_COLORS[i]);
 
 function sheetHtml(d) {
   const [y, m] = d.month.split('-');
-  const mixTotal = d.mix.service + d.mix.product;
-  const pct = (v) => (mixTotal ? Math.round((v / mixTotal) * 100) : 0);
-  const mom = d.metrics.momPercent;
-  const momText = mom == null ? '—' : `${mom > 0 ? '↑' : mom < 0 ? '↓' : '→'} ${Math.abs(mom)}%`;
   return `
   <header class="st-head">
     <div class="st-brand">頭沐 | CHIEFROM</div>
-    <div class="st-doc">每月業績明細</div>
+    <div class="st-doc">個人經營月報</div>
   </header>
-  <section class="st-title">
-    <h1>${esc(d.name)}</h1>
-    <p>${y} 年 ${Number(m)} 月</p>
+  <section class="mr-top">
+    <div class="mr-who"><h1>${esc(d.name)}</h1><p>${y} 年 ${Number(m)} 月</p></div>
+    <div class="mr-sales"><span>本月業績</span><b><small>NT$</small> ${fmt(d.sales)}</b></div>
   </section>
-  <section class="st-hero">
-    <span>當月個人業績</span>
-    <b><small>NT$</small> ${fmt(d.sales)}</b>
-    <div class="st-bonus-row">
-      <div class="st-bonus"><span>本月預估獎金</span><b>NT$ ${fmt(d.estimatedBonus)}</b></div>
-      ${d.quarterAdvance ? `<div class="st-bonus st-adv"><span>本季已預支</span><b>NT$ ${fmt(d.quarterAdvance)}</b></div>` : ''}
-    </div>
-    <p class="st-bonus-note">預估獎金依當月業績試算${d.quarterAdvance ? `；本季已預支金額（截至 ${Number(d.month.slice(5))} 月）將於季結算時扣抵` : ''}。實際發放金額以季結算為準。</p>
-  </section>
-  <section class="st-progress">
+  <section class="st-progress mr-progress">
     <div class="st-track">
       <div class="st-fill" style="width:${d.progress.percent}%"></div>
       ${d.progress.marks.map((k) => `<i class="st-mark" style="left:${k.percent}%"></i>`).join('')}
     </div>
     <div class="st-marklabels">${d.progress.marks.map((k) => `<span style="left:${k.percent}%">${k.label}</span>`).join('')}</div>
     <p class="st-progress-text">${esc(d.progress.text)}</p>
-  </section>
-  <section class="st-metrics">
-    <div><span>服務筆數</span><b>${fmt(d.metrics.visits)}<small> 筆</small></b></div>
-    <div><span>客數</span><b>${fmt(d.metrics.customers)}<small> 人</small></b></div>
-    <div><span>客單價</span><b>${fmt(d.metrics.avgTicket)}<small> 元</small></b></div>
-    <div><span>較上月</span><b>${momText}</b></div>
-  </section>
-  <section class="st-charts">
-    ${mixTotal ? `<div class="st-chart st-mix">
-      <h2>業績組成</h2>
-      <div class="st-mix-body">
-        <canvas class="c-mix" width="160" height="160"></canvas>
-        <ul class="st-legend">
-          <li><i style="background:${css('--chart-1')}"></i>服務<b>${fmt(d.mix.service)}</b><em>${pct(d.mix.service)}%</em></li>
-          <li><i style="background:${css('--chart-2')}"></i>商品<b>${fmt(d.mix.product)}</b><em>${pct(d.mix.product)}%</em></li>
-        </ul>
-      </div>
-    </div>` : ''}
-    <div class="st-chart st-trend">
-      <h2>近 6 個月業績</h2>
-      <canvas class="c-trend" width="650" height="180"></canvas>
+    <div class="mr-bonus-line">
+      <div class="st-bonus"><span>本月預估獎金</span><b>NT$ ${fmt(d.estimatedBonus)}</b></div>
+      ${d.quarterAdvance ? `<div class="st-bonus st-adv"><span>本季已預支</span><b>NT$ ${fmt(d.quarterAdvance)}</b></div>` : ''}
+      <p class="st-bonus-note">預估獎金依當月業績試算${d.quarterAdvance ? `；本季已預支（截至 ${Number(m)} 月）將於季結算時扣抵` : ''}。實際發放金額以季結算為準。</p>
     </div>
   </section>
+
+  <section class="mr-cards">
+    ${d.cards.map((c) => `<div class="mr-card">
+      <span>${c.label}</span>
+      <b class="${c.pending ? 'pending' : ''}">${esc(c.value)}${c.unit ? `<small> ${c.unit}</small>` : ''}${c.small ? '<sup>*</sup>' : ''}</b>
+      <em class="${c.diff ? c.diff.dir : ''}">${c.diff ? esc(c.diff.text) : '&nbsp;'}</em>
+      ${c.note ? `<i>${esc(c.note)}</i>` : ''}
+    </div>`).join('')}
+  </section>
+  ${d.smallSampleNote ? '<p class="mr-foot-note">* 樣本數少，僅供參考</p>' : ''}
+
+  <section class="mr-mid">
+    <div class="mr-radar">
+      <h2>能力雷達</h2>
+      ${d.radar ? '<canvas class="c-radar" width="260" height="196"></canvas><p class="mr-legend"><i class="solid"></i>本人　<i class="dash"></i>店內平均</p>' : '<p class="q-none">資料累積中</p>'}
+    </div>
+    <div class="mr-mix">
+      <h2>服務項目佔比</h2>
+      ${d.mix.total ? `<div class="mr-mix-body"><canvas class="c-mix" width="120" height="120"></canvas>
+        <ul class="mr-mix-legend">${d.mix.items.map((x, i) => `<li><i style="background:${mixColor(x.label, i, d.mix.items)}"></i>${esc(x.label)}<b>${x.percent}%</b></li>`).join('')}</ul></div>`
+        : '<p class="q-none">本月沒有擔任設計師的服務</p>'}
+    </div>
+  </section>
+
+  <section class="st-chart mr-trend">
+    <h2>近 6 個月業績</h2>
+    <canvas class="c-trend" width="666" height="140"></canvas>
+  </section>
+
+  ${d.praise ? `<section class="mr-praise">
+    <h2>客人怎麼說 <span>本月被客人點名 ${d.praise.mentions} 次</span></h2>
+    ${d.praise.quotes.map((q) => `<blockquote>「${esc(q.length > 56 ? q.slice(0, 54) + '…' : q)}」</blockquote>`).join('')}
+  </section>` : ''}
   <footer class="st-foot">頭沐 | CHIEFROM</footer>`;
 }
 
 async function renderSheet(d) {
   const sheet = document.createElement('div');
-  sheet.className = 'sheet';
+  sheet.className = 'sheet mrsheet';
   sheet.innerHTML = sheetHtml(d);
   $('#s-stage').appendChild(sheet);
   const charts = [];
   const ink = css('--ink-soft');
-  const font = { family: css('--font-sans') || 'sans-serif', size: 13 };
+  const font = { family: css('--font-sans') || 'sans-serif', size: 12 };
   try {
+    const radarCanvas = sheet.querySelector('.c-radar');
+    if (radarCanvas) {
+      charts.push(new Chart(radarCanvas, {
+        type: 'radar',
+        data: {
+          labels: RADAR_AXES.map((a) => a.label),
+          datasets: [
+            { label: '本人', data: RADAR_AXES.map((a) => d.radar[a.key] ?? 0), borderColor: css('--chart-1'), backgroundColor: 'rgba(94,116,89,.22)', borderWidth: 2, pointRadius: 3, pointBackgroundColor: css('--chart-1') },
+            { label: '店內平均', data: RADAR_AXES.map(() => 50), borderColor: ink, borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0, fill: false },
+          ],
+        },
+        options: {
+          responsive: false, animation: false, devicePixelRatio: 2,
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 25 }, grid: { color: css('--chart-grid') }, angleLines: { color: css('--chart-grid') }, pointLabels: { color: css('--ink'), font: { ...font, size: 13 } } } },
+        },
+      }));
+    }
     const mixCanvas = sheet.querySelector('.c-mix');
     if (mixCanvas) {
       charts.push(new Chart(mixCanvas, {
         type: 'doughnut',
-        data: { labels: ['服務', '商品'], datasets: [{ data: [d.mix.service, d.mix.product], backgroundColor: [css('--chart-1'), css('--chart-2')], borderColor: css('--surface'), borderWidth: 2 }] },
-        options: { responsive: false, animation: false, devicePixelRatio: 2, cutout: '64%', plugins: { legend: { display: false }, tooltip: { enabled: false } } },
+        data: { labels: d.mix.items.map((x) => x.label), datasets: [{ data: d.mix.items.map((x) => x.amount), backgroundColor: d.mix.items.map((x, i) => mixColor(x.label, i, d.mix.items)), borderColor: css('--surface'), borderWidth: 2 }] },
+        options: { responsive: false, animation: false, devicePixelRatio: 2, cutout: '62%', plugins: { legend: { display: false }, tooltip: { enabled: false } } },
       }));
     }
     const last = d.trend.length - 1;
@@ -157,14 +181,14 @@ async function renderSheet(d) {
         }],
       },
       options: {
-        responsive: false, animation: false, devicePixelRatio: 2, layout: { padding: { top: 28, right: 24 } },
+        responsive: false, animation: false, devicePixelRatio: 2, layout: { padding: { top: 24, right: 24 } },
         plugins: { legend: { display: false }, tooltip: { enabled: false } },
         scales: {
           x: { grid: { display: false }, border: { color: css('--line') }, ticks: { color: ink, font } },
-          y: { beginAtZero: true, grid: { color: css('--chart-grid') }, border: { display: false }, ticks: { color: ink, font, maxTicksLimit: 5, callback: (v) => wan(v) } },
+          y: { beginAtZero: true, grid: { color: css('--chart-grid') }, border: { display: false }, ticks: { color: ink, font, maxTicksLimit: 4, callback: (v) => wan(v) } },
         },
       },
-      plugins: [{ // 只標當月數值
+      plugins: [{
         id: 'lastLabel',
         afterDatasetsDraw(chart) {
           const pt = chart.getDatasetMeta(0).data[last];
@@ -173,9 +197,9 @@ async function renderSheet(d) {
           const c = chart.ctx;
           c.save();
           c.fillStyle = css('--ink');
-          c.font = `500 13px ${font.family}`;
+          c.font = `600 12px ${font.family}`;
           c.textAlign = 'center';
-          c.fillText(fmt(v), pt.x, pt.y - 12);
+          c.fillText(fmt(v), pt.x, pt.y - 10);
           c.restore();
         },
       }],

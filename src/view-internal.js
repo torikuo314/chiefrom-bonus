@@ -1,7 +1,7 @@
 // 公司內部版（只有管理者看）：全員比較、趨勢、下滑警示、助理紀錄、負評、環境類建議、當季獎金成本。v2 §9
 import { $, $$, esc, fmt, num } from './ui.js';
-import { buildIndex, staffMonthMetrics, radarScores, declining, addMonths, valueOf } from './metrics.js';
-import { orderLinesFromSheet } from './monthly.js';
+import { declining, addMonths, valueOf, radarScores } from './metrics.js';
+import { metricsOf as sharedMetricsOf } from './analytics.js';
 import { surveyStats } from './survey.js';
 import { quarterOf, monthsOfQuarter } from './calc.js';
 
@@ -41,20 +41,7 @@ export function show() {
   render();
 }
 
-let cache = null;
-function data() {
-  const sig = `${ctx.db['交易明細'].length}|${ctx.db['問卷'].length}|${JSON.stringify(ctx.settings.metric)}`;
-  if (cache?.sig === sig) return cache;
-  const lines = orderLinesFromSheet(ctx.db['交易明細']);
-  cache = { sig, index: buildIndex(lines, ctx.settings.metric), memo: new Map() };
-  return cache;
-}
-function metricsOf(name, m) {
-  const d = data();
-  const k = `${name}|${m}`;
-  if (!d.memo.has(k)) d.memo.set(k, staffMonthMetrics(d.index, name, m, ctx.settings.metric));
-  return d.memo.get(k);
-}
+const metricsOf = (name, m) => sharedMetricsOf(ctx, name, m);
 const surveyRows = () => ctx.db['問卷'].map((r) => ({
   month: r['月份'], staff: String(r['對應養護師'] || '').split(/[,，]/).map((s) => s.trim()).filter(Boolean),
   stars: r['星數'] === '' ? null : num(r['星數']),

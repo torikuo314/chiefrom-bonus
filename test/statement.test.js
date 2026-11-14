@@ -1,54 +1,77 @@
-// 假資料
+// 個人經營月報資料：假資料
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildStatement, lastMonths } from '../src/statement.js';
+import { buildStatement, buildCard, buildMix, lastMonths, CARD_DEFS } from '../src/statement.js';
 
 const P = { T1: 140000, T2: 220000, R1: 0.2, R2: 0.3 };
 const rows = [
   { 月份: '2099-02', 養護師: '甲甲', 業績: '100000', 調整金額: '' },
-  { 月份: '2099-03', 養護師: '甲甲', 業績: '150000', 調整金額: '10000', 服務業績: '140000', 商品業績: '10000',
-    筆數: '50', 客數: '20', 第一級業績: '20000', 第二級業績: '0', 當月獎金: '4000' },
+  { 月份: '2099-03', 養護師: '甲甲', 業績: '150000', 調整金額: '10000', 第一級業績: '20000', 第二級業績: '0', 當月獎金: '4000' },
   { 月份: '2099-03', 養護師: '乙乙', 業績: '999999' },
 ];
+const cur = {
+  avgTicket: 4200, customers: 30, productRatio: 0.12,
+  oldReturn: { value: 0.55, smallSample: false, pending: false, baseMonth: '2099-01' },
+  newReturn: { value: 0.5, smallSample: true, pending: false, window: { from: '2098-10', to: '2098-12' } },
+  addonRate: { value: 0.3 }, mix: { 草本染髮: 90000, 頭皮護理: 30000, 商品: 18000, 加購服務: 2000, 低敏染髮: 10000 },
+};
+const prev = { avgTicket: 4000, customers: 33, productRatio: 0.1, oldReturn: { value: 0.6 }, newReturn: { pending: true, value: null }, addonRate: { value: 0.3 } };
 
 test('近 6 個月跨年', () => {
   assert.deepEqual(lastMonths('2099-02', 6), ['2098-09', '2098-10', '2098-11', '2098-12', '2099-01', '2099-02']);
 });
 
-test('明細內容', () => {
-  const s = buildStatement(rows, '甲甲', '2099-03', P);
+test('指標卡：本月數值＋與自己上月比較', () => {
+  const by = Object.fromEntries(CARD_DEFS.map((d) => [d.key, buildCard(d, cur, prev)]));
+  assert.equal(by.avgTicket.value, '4,200');
+  assert.equal(by.avgTicket.diff.text, '較上月 ↑ 200 元');
+  assert.equal(by.customers.diff.text, '較上月 ↓ 3 人');
+  assert.equal(by.customers.diff.dir, 'down');
+  assert.equal(by.productRatio.value, '12%');
+  assert.equal(by.productRatio.diff.text, '較上月 ↑ 2 個百分點');
+  assert.equal(by.oldReturn.diff.text, '較上月 ↓ 5 個百分點');
+  assert.equal(by.newReturn.diff, null);       // 上月資料累積中 → 不比較
+  assert.equal(by.newReturn.small, true);
+  assert.equal(by.addonRate.diff.text, '與上月持平');
+  assert.equal(buildCard(CARD_DEFS[3], { newReturn: { pending: true } }, null).value, '資料累積中');
+});
+
+test('服務項目佔比：固定順序、其餘併為其他', () => {
+  const m = buildMix(cur.mix);
+  assert.deepEqual(m.items.map((x) => x.label), ['草本染髮', '頭皮護理', '商品', '加購服務', '其他']);
+  assert.equal(m.total, 150000);
+  assert.equal(m.items[0].percent, 60);
+});
+
+test('月報內容', () => {
+  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev, radar: { sales: 60 }, praise: { mentions: 4, quotes: ['a', 'b', 'c', 'd'] } });
   assert.equal(s.sales, 160000);
-  assert.equal(s.progress.text, '已達第一門檻');
-  assert.deepEqual(s.mix, { service: 140000, product: 10000 });
-  assert.equal(s.trend.length, 6);
-  assert.equal(s.trend[4].sales, 100000);
-  assert.equal(s.trend[3].sales, null);
-  assert.deepEqual(s.metrics, { visits: 50, customers: 20, avgTicket: 8000, momPercent: 60 });
-});
-
-test('顯示預估獎金，但不含比例或級距業績', () => {
-  const s = buildStatement(rows, '甲甲', '2099-03', P);
-  const json = JSON.stringify(s);
+  assert.equal(s.progress.text, '已達第一門檻，距第二門檻還差 60,000 元');
   assert.equal(s.estimatedBonus, 4000);
-  for (const banned of ['tier', 'R1', 'R2', '20000', '0.2', '0.3', '第一級', '第二級']) {
-    assert.ok(!json.includes(banned), `明細資料不應包含 ${banned}`);
-  }
+  assert.equal(s.cards.length, 6);
+  assert.equal(s.cards.find((c) => c.key === 'newReturn').note, '統計對象：10 月–12 月接手的新客');
+  assert.equal(s.smallSampleNote, true);
+  assert.equal(s.trend[4].sales, 100000);
+  assert.equal(s.praise.quotes.length, 3); // 最多 3 則
+  assert.equal(buildStatement(rows, '甲甲', '2099-03', P, [], { cur, praise: { mentions: 0, quotes: [] } }).praise, null);
 });
 
-test('沒有上月資料時不顯示比較', () => {
-  const s = buildStatement(rows, '甲甲', '2099-02', P);
-  assert.equal(s.metrics.momPercent, null);
-  assert.equal(s.progress.text, '距第一門檻還差 40,000 元');
+test('不含比例、級距業績、排名或店內平均', () => {
+  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev, radar: { sales: 60 } });
+  const json = JSON.stringify(s);
+  for (const banned of ['tier', 'R1', 'R2', '20000', '"0.2"', '0.3,', '第一級', '第二級', 'rank', '排名', '平均']) {
+    assert.ok(!json.includes(banned), `月報資料不應包含 ${banned}`);
+  }
 });
 
 test('本季截至當月的累計預支', () => {
   const adv = [
     { 養護師: '甲甲', 日期: '2099-01-10', 金額: '5000', 扣抵季度: '2099-Q1' },
     { 養護師: '甲甲', 日期: '2099-03-02', 金額: '3000', 扣抵季度: '2099-Q1' },
-    { 養護師: '甲甲', 日期: '2099-04-01', 金額: '9999', 扣抵季度: '2099-Q2' }, // 下一季
-    { 養護師: '乙乙', 日期: '2099-02-01', 金額: '7777', 扣抵季度: '2099-Q1' }, // 別人
+    { 養護師: '甲甲', 日期: '2099-04-01', 金額: '9999', 扣抵季度: '2099-Q2' },
+    { 養護師: '乙乙', 日期: '2099-02-01', 金額: '7777', 扣抵季度: '2099-Q1' },
   ];
   assert.equal(buildStatement(rows, '甲甲', '2099-03', P, adv).quarterAdvance, 8000);
-  assert.equal(buildStatement(rows, '甲甲', '2099-02', P, adv).quarterAdvance, 5000); // 3 月的還沒發生
+  assert.equal(buildStatement(rows, '甲甲', '2099-02', P, adv).quarterAdvance, 5000);
   assert.equal(buildStatement(rows, '甲甲', '2099-03', P).quarterAdvance, 0);
 });
