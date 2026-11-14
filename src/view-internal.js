@@ -64,13 +64,14 @@ function render() {
 
   // 1. 全員並列比較表
   $('#in-compare').innerHTML = `
-    <thead><tr><th>養護師</th>${CORE.map((c) => `<th>${c.label}</th>`).join('')}<th>接手新客</th><th>問卷（近 3 月）</th><th>試算獎金</th></tr></thead>
+    <thead><tr><th>養護師</th>${CORE.map((c) => `<th>${c.label}</th>`).join('')}<th>接客天數</th><th>接手新客</th><th>問卷（近 3 月）</th><th>試算獎金</th></tr></thead>
     <tbody>${list.map((m, i) => {
       const p = staff[i];
       const st = surveyStats(sv, p.name, last3);
       const warn = CORE.filter((c) => declining(trendValues(p.name, c.key, 4), 3));
       return `<tr><td>${esc(p.name)}${p.compare ? '' : ' <span class="hint">不比較</span>'}${warn.length ? ` <span class="badge s-有異議" title="${esc(warn.map((w) => w.label).join('、'))}連續 3 個月下滑">⚠ ${warn.length}</span>` : ''}</td>
         ${CORE.map((c) => `<td>${fmtMetric(m[c.key], c.kind)}</td>`).join('')}
+        <td>${fmt(m.workDays)}</td>
         <td>${fmt(m.newCustomers)}</td>
         <td>${st.mentions ? `${st.avgStars != null ? st.avgStars.toFixed(1) + ' 星' : '未評分'}<span class="hint">（${st.mentions} 份）</span>` : '<span class="hint">—</span>'}</td>
         <td>${monthly.has(p.name) ? fmt(monthly.get(p.name)['當月獎金']) : '<span class="hint">—</span>'}</td></tr>`;

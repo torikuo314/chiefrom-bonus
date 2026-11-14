@@ -85,12 +85,16 @@ test('個人新高與 6 個月走勢', async () => {
 test('給你的小建議', async () => {
   const { buildTips } = await import('../src/statement.js');
   const below = { level: 0, toNext: 37000 };
-  const t1 = buildTips({ me: { avgTicket: 3700, returnRate: { value: 0.2, num: 5 }, productCustomerRate: 0.05, addonRate: { value: 0.1 } },
+  const t1 = buildTips({ me: { avgTicket: 3700, customers: 27, returnRate: { value: 0.2, num: 5 }, productCustomerRate: 0.05, addonRate: { value: 0.1 } },
     avg: { returnRate: 0.4, productCustomerRate: 0.2, addonRate: 0.3 }, progress: below });
   assert.equal(t1.length, 3);
-  assert.match(t1[0].text, /再服務約 10 位客人，就能達到第一門檻/);
+  assert.match(t1[0].text, /下個月每位客人平均多約 1,380 元.*第一門檻/); // 37000 / 27 ≈ 1370.4 → 1,380
   assert.match(t1[1].text, /回流率可以再加油/);
   assert.match(t1[2].text, /居家保養/);
+  // 接客天數偏少 → 鼓勵多排班（換算天數）
+  const tw = buildTips({ me: { customers: 20, sales: 100000, workDays: 10 }, avg: { workDays: 18 }, progress: { level: 0, toNext: 25000 } });
+  assert.match(tw[1].text, /本月接客 10 天，下個月若能多排約 3 天班，就有機會達到第一門檻！/);
+  assert.ok(!JSON.stringify(tw).includes('休假'));
   // 表現好：只鼓勵
   const t2 = buildTips({ me: { avgTicket: 4000, returnRate: { value: 0.5, num: 9 }, productCustomerRate: 0.3, addonRate: { value: 0.4 } },
     prev: { returnRate: { value: 0.4, num: 8 } }, avg: { returnRate: 0.4, productCustomerRate: 0.2, addonRate: 0.3 }, progress: { level: 2 } });
@@ -108,7 +112,7 @@ test('給你的小建議', async () => {
 test('不含比例、級距業績或店內平均', () => {
   const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev });
   const json = JSON.stringify(s);
-  for (const banned of ['tier', 'R1', 'R2', '"0.2"', '0.3,', '第一級', '第二級', '平均', 'bonusRate']) {
+  for (const banned of ['tier', 'R1', 'R2', '"0.2"', '0.3,', '第一級', '第二級', '店內平均', 'storeAvg', 'bonusRate']) {
     assert.ok(!json.includes(banned), `月報資料不應包含 ${banned}`);
   }
 });

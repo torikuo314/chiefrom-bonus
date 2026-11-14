@@ -96,9 +96,17 @@ export function buildTips({ me = {}, prev = {}, avg = {}, progress, salesBest = 
   const low = (v, a) => v != null && a != null && a > 0 && v < a * 0.9;
   if (salesBest) tips.push({ icon: '🎉', text: '本月業績創個人新高，太棒了！' });
   else if (Object.keys(ranks).length) tips.push({ icon: '👏', text: '本月有項目進入店內前三名，做得很好！' });
-  if (progress && progress.level < 2 && progress.toNext > 0 && me.avgTicket) {
-    const n = Math.ceil(progress.toNext / me.avgTicket);
-    tips.push({ icon: '🎯', text: `再服務約 ${n} 位客人，就能達到${progress.level === 0 ? '第一' : '第二'}門檻（以你的客單價估算）。` });
+  // 使用者說明：客人由公司分配，養護師無法自己多接客 → 改用「每位客人多消費」與「多排班」兩個自己能掌握的方向，並以下個月為目標
+  const goal = progress && progress.level < 2 && progress.toNext > 0 ? (progress.level === 0 ? '第一' : '第二') : null;
+  if (goal && me.customers) {
+    const per = Math.ceil(progress.toNext / me.customers / 10) * 10;
+    tips.push({ icon: '🎯', text: `下個月每位客人平均多約 ${per.toLocaleString('en-US')} 元（例如多一項加值服務或居家保養），就有機會達到${goal}門檻！` });
+  }
+  if (me.workDays && avg.workDays && me.workDays < avg.workDays * 0.9) {
+    const perDay = me.sales && me.workDays ? me.sales / me.workDays : 0;
+    const days = goal && perDay ? Math.ceil(progress.toNext / perDay) : 0;
+    tips.push({ icon: '📅', text: days ? `本月接客 ${me.workDays} 天，下個月若能多排約 ${days} 天班，就有機會達到${goal}門檻！`
+      : `本月接客 ${me.workDays} 天，下個月若能多排幾天班，就能接到更多客人！` });
   }
   const r = me.returnRate?.value, pr = prev.returnRate?.value;
   if (low(r, avg.returnRate) || (r != null && pr != null && me.returnRate.num < prev.returnRate.num)) {
@@ -111,7 +119,10 @@ export function buildTips({ me = {}, prev = {}, avg = {}, progress, salesBest = 
     tips.push({ icon: '✨', text: '可以多推薦加值服務，讓客人的體驗更完整。' });
   }
   if (tips.length === (salesBest || Object.keys(ranks).length ? 1 : 0)) tips.push({ icon: '🌱', text: '各項表現都很穩定，繼續保持！' });
-  return tips.slice(0, 3);
+  // 恭喜不佔名額：恭喜（最多 1 則）＋實際建議最多 3 則
+  const cheer = tips.filter((t) => t.icon === '🎉' || t.icon === '👏');
+  const rest = tips.filter((t) => t.icon !== '🎉' && t.icon !== '👏');
+  return [...cheer.slice(0, 1), ...rest.slice(0, 3)];
 }
 
 /** 服務項目佔比：固定順序，其餘併入「其他」。 */
@@ -146,7 +157,7 @@ export function buildStatement(monthlyRows, name, month, params, advanceRows = [
     return buildCard(d, cur, prev, { note, rank: extra.ranks?.[d.key] || null, history: extra.history || [] });
   });
   const salesHistory = lastMonths(month, 12).map((m) => { const r = mine.find((x) => x['月份'] === m); return r ? effectiveSales(r) : null; });
-  return {
+  const result = {
     name, month, sales,
     salesBest: isPersonalBest(sales, salesHistory.slice(0, -1)),
     estimatedBonus: n(row['當月獎金']),
@@ -169,4 +180,7 @@ export function buildStatement(monthlyRows, name, month, params, advanceRows = [
     tips: buildTips({ me: cur || {}, prev: prev || {}, avg: extra.storeAvg || {}, progress: p, salesBest: isPersonalBest(sales, salesHistory.slice(0, -1)), ranks: extra.ranks || {} }),
     praise: praise && praise.quotes.length ? { mentions: praise.mentions, quotes: praise.quotes.slice(0, 3) } : null,
   };
+  // 建議 4 則時留言最多 2 則，確保一頁 A4 放得下
+  if (result.praise && result.tips.length >= 4) result.praise.quotes = result.praise.quotes.slice(0, 2);
+  return result;
 }

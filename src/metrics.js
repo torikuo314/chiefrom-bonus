@@ -123,6 +123,7 @@ export function staffMonthMetrics(index, staff, month, settings = DEFAULT_METRIC
       return all ? new Set(designer.filter((r) => r.type === '商品').map((r) => r.customer || `#${r.orderNo}`)).size / all : null;
     })(),
     addonCount: addonOrders.size,
+    workDays: new Set(inMonth.map((r) => r.date)).size, // 有接客（任何職位）的天數
     mix: designer.reduce((m, r) => ((m[r.type] = (m[r.type] || 0) + r.amount), m), {}),
     // 內部指標
     newCustomers: [...index.firstDesigners].filter(([, f]) => monthOf(f.date) === month && f.designers.has(staff)).length,
