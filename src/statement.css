@@ -2,7 +2,7 @@
 #s-stage { position: fixed; left: -10000px; top: 0; }
 .sheet {
   width: 794px; height: 1123px; padding: 64px 72px 48px; background: var(--surface); color: var(--ink);
-  font: 300 15px/1.6 var(--font-sans); display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;
+  font: 400 15px/1.6 var(--font-sans); display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;
 }
 .sheet h1, .sheet h2 { font-family: var(--font-serif); font-weight: 500; margin: 0; letter-spacing: .06em; }
 .st-head { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 14px; border-bottom: 1px solid var(--line); }

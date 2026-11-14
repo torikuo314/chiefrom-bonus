@@ -110,13 +110,13 @@ function render() {
 
   // 4. 負評（本月）
   const neg = ctx.db['問卷'].filter((r) => r['月份'] === month && r['負評'] === '是');
-  $('#in-neg').innerHTML = neg.length ? `<thead><tr><th>消費日期</th><th>養護師</th><th>星數</th><th>第一題</th><th>建議</th></tr></thead>
+  $('#in-neg').innerHTML = neg.length ? `<thead><tr><th>消費日期</th><th>養護師</th><th>星數</th><th class="l">第一題</th><th class="l">建議</th></tr></thead>
     <tbody>${neg.map((r) => `<tr><td>${esc(r['消費日期'])}</td><td>${esc(r['對應養護師'] || '未指名')}</td><td>${esc(r['星數'] || '未評分')}</td><td class="l wrap">${esc(r['第一題'])}</td><td class="l wrap">${esc(r['建議'])}</td></tr>`).join('')}</tbody>`
     : '<tbody><tr><td class="hint">本月沒有負評</td></tr></tbody>';
 
   // 5. 環境類建議（全部，可標記已處理）
   const env = ctx.db['問卷'].filter((r) => r['環境類'] === '是').sort((a, b) => (a['消費日期'] < b['消費日期'] ? 1 : -1));
-  $('#in-env').innerHTML = env.length ? `<thead><tr><th>消費日期</th><th>建議</th><th>已處理</th></tr></thead>
+  $('#in-env').innerHTML = env.length ? `<thead><tr><th>消費日期</th><th class="l">建議</th><th>已處理</th></tr></thead>
     <tbody>${env.map((r) => `<tr class="${r['環境已處理'] === '是' ? 'done' : ''}"><td>${esc(r['消費日期'])}</td><td class="l wrap">${esc(r['建議'])}</td>
       <td><input type="checkbox" data-env="${esc(r['編號'])}" ${r['環境已處理'] === '是' ? 'checked' : ''}></td></tr>`).join('')}</tbody>`
     : '<tbody><tr><td class="hint">沒有環境類建議</td></tr></tbody>';
