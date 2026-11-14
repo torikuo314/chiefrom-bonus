@@ -2,7 +2,7 @@
 // 內容只來自 buildStatement()：含本月預估獎金、本季已預支；不含比例、級距業績、店內平均數字、排名。
 import { $, $$, esc, fmt } from './ui.js';
 import { buildStatement, topRanks, RANKED_KEYS } from './statement.js';
-import { metricsOf, praiseOf, prevMonthOf, ranksOf, historyOf } from './analytics.js';
+import { metricsOf, praiseOf, prevMonthOf, ranksOf, historyOf, storeAvgOf } from './analytics.js';
 import { css, capture, downloadZip, renderPreviews } from './export.js';
 
 let ctx;
@@ -49,12 +49,13 @@ async function make() {
   try {
     await document.fonts.ready;
     const ranks = ranksOf(ctx, month, RANKED_KEYS, topRanks);
+    const storeAvg = storeAvgOf(ctx, month);
     for (const [i, name] of names.entries()) {
       btn.textContent = `產生中… ${i + 1}/${names.length}`;
       const data = buildStatement(ctx.db['月業績'], name, month, params, ctx.db['預支'], {
         cur: metricsOf(ctx, name, month), prev: metricsOf(ctx, name, prevMonthOf(month)),
         ranks: ranks[name] || {}, praise: praiseOf(ctx, name, [month]), returnDays: ctx.settings.metric.returnDays,
-        history: historyOf(ctx, name, month, 12),
+        history: historyOf(ctx, name, month, 12), storeAvg,
       });
       results.push({ name, ...(await renderSheet(data)) });
     }
@@ -108,11 +109,16 @@ function sheetHtml(d) {
       ${c.note ? `<i>${esc(c.note)}</i>` : ''}
     </div>`).join('')}
   </section>
-  <p class="mr-foot-note">▲▼ 為與上月比較${d.smallSampleNote ? '・* 樣本數少，僅供參考' : ''}</p>
+  ${d.smallSampleNote ? '<p class="mr-foot-note">* 樣本數少，僅供參考</p>' : ''}
+
+  ${d.tips.length ? `<section class="mr-tips">
+    <h2>給你的小建議</h2>
+    <ul>${d.tips.map((t) => `<li><span class="mr-tip-icon">${t.icon}</span>${esc(t.text)}</li>`).join('')}</ul>
+  </section>` : ''}
 
   <section class="st-chart mr-trend">
     <h2>近 6 個月業績</h2>
-    <canvas class="c-trend" width="666" height="${d.praise ? 150 : 190}"></canvas>
+    <canvas class="c-trend" width="666" height="${d.praise ? 130 : 180}"></canvas>
   </section>
 
   ${d.praise ? `<section class="mr-praise">

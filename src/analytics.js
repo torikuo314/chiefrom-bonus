@@ -67,6 +67,17 @@ export function ranksOf(ctx, month, keyMap, topRanks) {
   return out;
 }
 
+/** 「納入比較」者的店內平均（只用來產生建議，不顯示在月報）。 */
+export function storeAvgOf(ctx, month) {
+  const cmp = ctx.settings.staff.filter((p) => p.compare).map((p) => metricsOf(ctx, p.name, month));
+  const avg = (vals) => { const v = vals.filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  return {
+    returnRate: avg(cmp.map((m) => m.returnRate?.value)),
+    productCustomerRate: avg(cmp.map((m) => m.productCustomerRate)),
+    addonRate: avg(cmp.map((m) => m.addonRate?.value)),
+  };
+}
+
 /** 某人近 n 個月的指標（舊→新，最後一個是 month）。 */
 export function historyOf(ctx, name, month, n = 12) {
   return Array.from({ length: n }, (_, i) => addMonths(month, i - n + 1)).map((m) => metricsOf(ctx, name, m));

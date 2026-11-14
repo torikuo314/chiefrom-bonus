@@ -204,3 +204,27 @@
 .mr-arrow.down .tri { border-top: 7px solid #fff; margin-top: 2px; }
 .mr-arrow { font: 700 13px/20px var(--font-sans) !important; text-align: center; display: inline-block !important; }
 .mr-card .mr-diff .mr-arrow { color: #fff !important; font: 700 13px/20px var(--font-sans) !important; letter-spacing: 0 !important; }
+
+/* 給你的小建議 */
+.mr-tips { margin-top: 14px; background: var(--accent-soft); border-radius: 12px; padding: 12px 18px; }
+.mr-tips h2 { font-size: 15px !important; margin: 0 0 6px !important; color: #7a5a1c; }
+.mr-tips ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.mr-tips li { display: flex; gap: 10px; align-items: baseline; font-size: 14px; line-height: 1.5; color: var(--ink); }
+.mr-tip-icon { flex: none; width: 20px; text-align: center; }
+.mr-foot-note { margin-top: 6px !important; }
+/* 有留言＋建議時也要放得下一頁 */
+.mrsheet { padding-top: 34px !important; }
+.mr-cards { margin-top: 10px !important; gap: 8px !important; }
+.mr-card { padding: 11px 16px !important; }
+.mr-card b { font-size: 30px !important; }
+.mr-card em { margin-top: 0 !important; }
+.mr-tags { margin-top: 6px !important; }
+.mr-tips { margin-top: 10px !important; padding: 9px 16px !important; }
+.mr-tips h2 { margin-bottom: 3px !important; }
+.mr-tips li { font-size: 13.5px !important; line-height: 1.45 !important; }
+.mr-trend { margin-top: 10px !important; }
+.mr-trend h2, .mr-praise h2 { margin-bottom: 2px !important; }
+.mr-praise { margin-top: 10px !important; }
+.mr-quotes { gap: 6px !important; margin-top: 4px !important; }
+.mr-praise blockquote { padding: 7px 14px 7px 42px !important; font-size: 14px !important; }
+.mr-praise blockquote i { font-size: 32px !important; }

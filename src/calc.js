@@ -40,8 +40,8 @@ export function monthlyBonus(sales, params) {
 /** 給養護師看的門檻進度（不含金額與比例）。 */
 export function targetProgress(sales, { T1, T2 }) {
   if (sales >= T2) return { level: 2, text: '已達第二門檻' };
-  if (sales >= T1) return { level: 1, text: `已達第一門檻，距第二門檻還差 ${fmt(T2 - sales)} 元`, toNext: T2 - sales };
-  return { level: 0, text: `距第一門檻還差 ${fmt(T1 - sales)} 元`, toNext: T1 - sales };
+  if (sales >= T1) return { level: 1, text: `已達第一門檻，距第二門檻還差 ${fmt(T2 - sales)} 元，好可惜！`, toNext: T2 - sales };
+  return { level: 0, text: `距第一門檻還差 ${fmt(T1 - sales)} 元，好可惜！`, toNext: T1 - sales };
 }
 
 /**

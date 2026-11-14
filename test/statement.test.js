@@ -49,7 +49,7 @@ test('服務項目佔比：固定順序、其餘併為其他', () => {
 test('月報內容', () => {
   const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev, radar: { sales: 60 }, praise: { mentions: 4, quotes: ['a', 'b', 'c', 'd'] } });
   assert.equal(s.sales, 160000);
-  assert.equal(s.progress.text, '已達第一門檻，距第二門檻還差 60,000 元');
+  assert.equal(s.progress.text, '已達第一門檻，距第二門檻還差 60,000 元，好可惜！');
   assert.equal(s.estimatedBonus, 4000);
   assert.equal(s.cards.length, 5);
   assert.equal(s.cards.find((c) => c.key === 'returnRate').note, '1 月服務 20 人次，有 11 人次在 60 天內回來');
@@ -80,6 +80,29 @@ test('個人新高與 6 個月走勢', async () => {
   assert.equal(c.best, true);
   assert.deepEqual(c.spark, [11, 12, 13, 14, 15, 20]);
   assert.equal('history' in c, false);
+});
+
+test('給你的小建議', async () => {
+  const { buildTips } = await import('../src/statement.js');
+  const below = { level: 0, toNext: 37000 };
+  const t1 = buildTips({ me: { avgTicket: 3700, returnRate: { value: 0.2, num: 5 }, productCustomerRate: 0.05, addonRate: { value: 0.1 } },
+    avg: { returnRate: 0.4, productCustomerRate: 0.2, addonRate: 0.3 }, progress: below });
+  assert.equal(t1.length, 3);
+  assert.match(t1[0].text, /再服務約 10 位客人，就能達到第一門檻/);
+  assert.match(t1[1].text, /回流率可以再加油/);
+  assert.match(t1[2].text, /居家保養/);
+  // 表現好：只鼓勵
+  const t2 = buildTips({ me: { avgTicket: 4000, returnRate: { value: 0.5, num: 9 }, productCustomerRate: 0.3, addonRate: { value: 0.4 } },
+    prev: { returnRate: { value: 0.4, num: 8 } }, avg: { returnRate: 0.4, productCustomerRate: 0.2, addonRate: 0.3 }, progress: { level: 2 } });
+  assert.deepEqual(t2.map((x) => x.text), ['各項表現都很穩定，繼續保持！']);
+  // 回流人次比上月少 → 提醒
+  const t3 = buildTips({ me: { returnRate: { value: 0.5, num: 7 } }, prev: { returnRate: { value: 0.5, num: 9 } }, avg: { returnRate: 0.5 }, progress: { level: 2 } });
+  assert.match(t3[0].text, /回流率可以再加油/);
+  // 個人新高 → 先恭喜
+  const t4 = buildTips({ me: {}, avg: {}, progress: { level: 2 }, salesBest: true });
+  assert.deepEqual(t4.map((x) => x.icon), ['🎉', '🌱']); // 恭喜＋繼續保持
+  // 建議文字不含數字平均
+  assert.ok(!JSON.stringify(t1).includes('0.4'));
 });
 
 test('不含比例、級距業績或店內平均', () => {

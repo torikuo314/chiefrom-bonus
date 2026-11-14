@@ -86,6 +86,34 @@ export function buildCard(def, cur, prev, extra = {}) {
   return { key: def.key, label: def.label, value, unit: !pending && v != null && def.kind !== 'pct' ? def.unit : '', diff, small, pending, spark, best, ...rest };
 }
 
+/**
+ * 給你的小建議（依表現自動產生，最多 3 則）。
+ * me：本月指標；prev：上月指標；avg：店內平均（只用來判斷，不顯示）；progress：門檻進度
+ * 「偏少」＝低於店內平均的 9 成。
+ */
+export function buildTips({ me = {}, prev = {}, avg = {}, progress, salesBest = false, ranks = {} }) {
+  const tips = [];
+  const low = (v, a) => v != null && a != null && a > 0 && v < a * 0.9;
+  if (salesBest) tips.push({ icon: '🎉', text: '本月業績創個人新高，太棒了！' });
+  else if (Object.keys(ranks).length) tips.push({ icon: '👏', text: '本月有項目進入店內前三名，做得很好！' });
+  if (progress && progress.level < 2 && progress.toNext > 0 && me.avgTicket) {
+    const n = Math.ceil(progress.toNext / me.avgTicket);
+    tips.push({ icon: '🎯', text: `再服務約 ${n} 位客人，就能達到${progress.level === 0 ? '第一' : '第二'}門檻（以你的客單價估算）。` });
+  }
+  const r = me.returnRate?.value, pr = prev.returnRate?.value;
+  if (low(r, avg.returnRate) || (r != null && pr != null && me.returnRate.num < prev.returnRate.num)) {
+    tips.push({ icon: '💪', text: '顧客回流率可以再加油！服務結束時，記得幫客人預約或提醒下次回來的時間。' });
+  }
+  if (low(me.productCustomerRate, avg.productCustomerRate)) {
+    tips.push({ icon: '🌿', text: '可以多和客人分享居家保養，幫客人把養護效果延續到家裡。' });
+  }
+  if (low(me.addonRate?.value, avg.addonRate)) {
+    tips.push({ icon: '✨', text: '可以多推薦加值服務，讓客人的體驗更完整。' });
+  }
+  if (tips.length === (salesBest || Object.keys(ranks).length ? 1 : 0)) tips.push({ icon: '🌱', text: '各項表現都很穩定，繼續保持！' });
+  return tips.slice(0, 3);
+}
+
 /** 服務項目佔比：固定順序，其餘併入「其他」。 */
 export function buildMix(mix = {}) {
   const items = MIX_ORDER.map((k) => ({ label: k, amount: Math.max(0, n(mix[k])) }));
@@ -138,6 +166,7 @@ export function buildStatement(monthlyRows, name, month, params, advanceRows = [
     smallSampleNote: cards.some((c) => c.small),
     trend,
     // 使用者決定：沒有勾選留言時整區隱藏
+    tips: buildTips({ me: cur || {}, prev: prev || {}, avg: extra.storeAvg || {}, progress: p, salesBest: isPersonalBest(sales, salesHistory.slice(0, -1)), ranks: extra.ranks || {} }),
     praise: praise && praise.quotes.length ? { mentions: praise.mentions, quotes: praise.quotes.slice(0, 3) } : null,
   };
 }

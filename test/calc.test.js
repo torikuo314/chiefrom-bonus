@@ -59,8 +59,8 @@ test('參數依生效月份取用', () => {
 });
 
 test('目標進度文字不含金額與比例', () => {
-  assert.equal(targetProgress(100000, DEFAULT_PARAMS).text, '距第一門檻還差 40,000 元');
-  assert.equal(targetProgress(140000, DEFAULT_PARAMS).text, '已達第一門檻，距第二門檻還差 80,000 元');
+  assert.equal(targetProgress(100000, DEFAULT_PARAMS).text, '距第一門檻還差 40,000 元，好可惜！');
+  assert.equal(targetProgress(140000, DEFAULT_PARAMS).text, '已達第一門檻，距第二門檻還差 80,000 元，好可惜！');
   assert.equal(targetProgress(230000, DEFAULT_PARAMS).text, '已達第二門檻');
 });
 
