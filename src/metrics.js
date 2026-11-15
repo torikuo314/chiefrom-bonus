@@ -11,6 +11,7 @@ export const DEFAULT_METRIC_SETTINGS = Object.freeze({
   minSample: 5,          // 基準人數少於此值加註「樣本數少」
   revisitDays: 45,       // 待回訪：超過幾天沒回來
   revisitMaxDays: 180,   // 待回訪：超過幾天就不列
+  praiseMonths: 3,       // 每月整理：列出近幾個月的客人留言
   excludeStores: ['夥伴店'], // 不計入門店養護師指標的店家
 });
 

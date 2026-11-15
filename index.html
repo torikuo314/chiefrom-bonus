@@ -170,6 +170,7 @@
         <label class="inline">月份 <select id="sv-month"></select></label>
       </div>
       <p class="hint">勾選要放進個人經營月報的讚美留言（每人 2–3 則），可直接修改文字、去掉客人可辨識的資訊。負評與環境類建議只會出現在公司內部版。</p>
+      <p id="sv-range" class="hint"></p>
       <div id="sv-review-body"></div>
       <div class="actions">
         <button id="sv-save" class="primary">儲存整理</button>
@@ -347,6 +348,7 @@
         <label>樣本數少於幾人時加註「僅供參考」<input id="ms-min" type="number" min="1"></label>
         <label>待回訪：超過幾天沒回來<input id="ms-rv" type="number" min="1"></label>
         <label>待回訪：超過幾天就不列入<input id="ms-rvmax" type="number" min="1"></label>
+        <label>每月整理：列出近幾個月的客人留言<input id="ms-pm" type="number" min="1" max="12"></label>
       </div>
       <label>項目類別對照（每行一個：【】內的文字=報表類別；商品、附加服務→加購服務、方案開頭→方案為固定規則）<textarea id="ms-cat" rows="5"></textarea></label>
       <p class="hint">類別對照在匯入時套用；修改後請重新匯入受影響的月份。</p>

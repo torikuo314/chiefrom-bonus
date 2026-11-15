@@ -161,3 +161,24 @@ export function surveyStats(resolved, name, months) {
     rated: rated.length,
   };
 }
+
+// ---- 讚美留言勾選：可跨月份 ----
+// 「讚美勾選」欄格式：逗號分隔的「姓名@YYYY-MM」（＝放進該月月報）。
+// 舊格式只有「姓名」時，視為放進該問卷自己的月份。
+export function parsePicks(value, rowMonth) {
+  return String(value || '').split(/[,，]/).map((x) => x.trim()).filter(Boolean).map((x) => {
+    const [name, month] = x.split('@');
+    return { name: name.trim(), month: (month || rowMonth || '').trim() };
+  });
+}
+export const formatPicks = (picks) => picks.map((p) => `${p.name}@${p.month}`).join(', ');
+
+/** 設定某人在某月月報是否勾選此留言，回傳新的欄位值。 */
+export function setPick(value, rowMonth, name, month, on) {
+  const picks = parsePicks(value, rowMonth).filter((p) => !(p.name === name && p.month === month));
+  if (on) picks.push({ name, month });
+  return formatPicks(picks);
+}
+
+/** 此留言被某人用於哪些月份的月報。 */
+export const usedMonths = (value, rowMonth, name) => parsePicks(value, rowMonth).filter((p) => p.name === name).map((p) => p.month);

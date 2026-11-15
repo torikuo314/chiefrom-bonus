@@ -1,5 +1,5 @@
 // 問卷：匯入（暱稱比對、待處理）＋每月整理（勾選讚美留言、標記負評與環境類）。v2 §5
-import { SURVEY_FIELDS, guessSurveyMapping, checkSurveyMapping, parseSurvey, resolveSurvey } from './survey.js';
+import { SURVEY_FIELDS, guessSurveyMapping, checkSurveyMapping, parseSurvey, resolveSurvey, usedMonths, setPick } from './survey.js';
 import { $, $$, esc, fmt } from './ui.js';
 
 let ctx;
@@ -156,6 +156,14 @@ async function doImport(res, months, over) {
 // ---------------- 每月整理 ----------------
 const split = (s) => String(s || '').split(/[,，]/).map((x) => x.trim()).filter(Boolean);
 
+const monthsBack = (m, n) => {
+  const out = [];
+  let [y, mo] = m.split('-').map(Number);
+  for (let i = 0; i < n; i++) { out.push(`${y}-${String(mo).padStart(2, '0')}`); if (--mo < 1) { mo = 12; y--; } }
+  return out;
+};
+const mLabel = (m) => `${Number(m.slice(5))} 月`;
+
 function renderReview() {
   const all = ctx.db['問卷'];
   const months = [...new Set(all.map((r) => r['月份']).filter(Boolean))].sort().reverse();
@@ -163,23 +171,33 @@ function renderReview() {
   $('#sv-month').innerHTML = months.map((m) => `<option ${m === reviewMonth ? 'selected' : ''}>${m}</option>`).join('');
   $('#sv-review').hidden = !months.length;
   if (!months.length) return;
-  const rows = all.filter((r) => r['月份'] === reviewMonth);
+  const range = monthsBack(reviewMonth, ctx.settings.metric.praiseMonths || 3);
+  $('#sv-range').textContent = `列出 ${mLabel(range.at(-1))}–${mLabel(reviewMonth)} 提到該養護師的留言，勾選的會放進 ${mLabel(reviewMonth)} 的月報。`;
+  const rowHtml = (r, name, used) => {
+    const picked = used.includes(reviewMonth);
+    const others = used.filter((m) => m !== reviewMonth);
+    return `<tr data-id="${esc(r['編號'])}" data-staff="${esc(name)}" class="${r['月份'] === reviewMonth ? '' : 'older'}">
+      <td><input type="checkbox" class="sv-praise" ${picked ? 'checked' : ''}></td>
+      <td class="l wrap"><textarea class="sv-text" rows="2">${esc(r['讚美文字'] || r['第一題'])}</textarea>
+        <span class="hint">${mLabel(r['月份'])}消費・${r['星數'] ? `${esc(r['星數'])} 星` : '未評分'}${r['形容詞'] ? `・${esc(r['形容詞'])}` : ''}${others.length ? `・<b class="sv-used">已用於 ${others.map(mLabel).join('、')}月報</b>` : ''}</span></td>
+      <td><label class="check"><input type="checkbox" class="sv-neg" ${r['負評'] === '是' ? 'checked' : ''}> 負評</label></td></tr>`;
+  };
   const html = ctx.settings.staff.map((p) => {
-    const mine = rows.filter((r) => split(r['對應養護師']).includes(p.name));
-    if (!mine.length) return `<h3>${esc(p.name)} <span class="hint">本月沒有被點名</span></h3>`;
-    return `<h3>${esc(p.name)} <span class="hint">被點名 ${mine.length} 次・建議勾選 2–3 則</span></h3>
-      <table class="sv-list"><tbody>${mine.map((r) => {
-        const picked = split(r['讚美勾選']).includes(p.name);
-        return `<tr data-id="${esc(r['編號'])}" data-staff="${esc(p.name)}">
-          <td><input type="checkbox" class="sv-praise" ${picked ? 'checked' : ''} ${r['負評'] === '是' ? 'title="負評不建議放進月報"' : ''}></td>
-          <td class="l wrap"><textarea class="sv-text" rows="2">${esc(r['讚美文字'] || r['第一題'])}</textarea>
-            <span class="hint">${r['星數'] ? `${esc(r['星數'])} 星` : '未評分'}${r['形容詞'] ? `・${esc(r['形容詞'])}` : ''}</span></td>
-          <td><label class="check"><input type="checkbox" class="sv-neg" ${r['負評'] === '是' ? 'checked' : ''}> 負評</label></td></tr>`;
-      }).join('')}</tbody></table>`;
+    const mine = all.filter((r) => range.includes(r['月份']) && split(r['對應養護師']).includes(p.name))
+      .sort((x, y) => (x['月份'] === reviewMonth) - (y['月份'] === reviewMonth) || (x['消費日期'] < y['消費日期'] ? -1 : 1)).reverse();
+    const thisMonth = mine.filter((r) => r['月份'] === reviewMonth).length;
+    if (!mine.length) return `<h3>${esc(p.name)} <span class="hint">近 ${range.length} 個月沒有被提到</span></h3>`;
+    const withUse = mine.map((r) => ({ r, used: usedMonths(r['讚美勾選'], r['月份'], p.name) }));
+    const fresh = withUse.filter((x) => x.used.every((m) => m === reviewMonth));
+    const usedElsewhere = withUse.filter((x) => x.used.some((m) => m !== reviewMonth));
+    return `<h3>${esc(p.name)} <span class="hint">本月被提到 ${thisMonth} 次・建議勾選 2–3 則</span></h3>
+      <table class="sv-list"><tbody>${fresh.map((x) => rowHtml(x.r, p.name, x.used)).join('') || '<tr><td class="hint">沒有未用過的留言</td></tr>'}</tbody></table>
+      ${usedElsewhere.length ? `<details class="sv-old"><summary class="hint">已用於其他月份月報的留言（${usedElsewhere.length} 則）</summary>
+        <table class="sv-list"><tbody>${usedElsewhere.map((x) => rowHtml(x.r, p.name, x.used)).join('')}</tbody></table></details>` : ''}`;
   }).join('');
-  const env = rows.filter((r) => r['建議']);
+  const env = all.filter((r) => r['月份'] === reviewMonth && r['建議']);
   $('#sv-review-body').innerHTML = html + `
-    <h3>建議（第三題）<span class="hint">勾選「環境類」的只出現在公司內部版，不歸屬個人</span></h3>
+    <h3>建議（第三題，${mLabel(reviewMonth)}）<span class="hint">勾選「環境類」的只出現在公司內部版，不歸屬個人</span></h3>
     <table class="sv-list"><tbody>${env.map((r) => `<tr data-id="${esc(r['編號'])}"><td class="l wrap">${esc(r['建議'])}</td>
       <td><label class="check"><input type="checkbox" class="sv-env" ${r['環境類'] === '是' ? 'checked' : ''}> 環境類</label></td></tr>`).join('') || '<tr><td>本月沒有建議</td></tr>'}</tbody></table>`;
   $('#sv-saved').textContent = '';
@@ -187,25 +205,28 @@ function renderReview() {
 
 async function saveReview() {
   const byId = new Map();
-  const get = (id) => byId.get(id) || byId.set(id, { 編號: id }).get(id);
-  const praise = new Map(); // id -> Set(staff)
+  const src = new Map(ctx.db['問卷'].map((r) => [r['編號'], r]));
+  const get = (id) => byId.get(id) || byId.set(id, { 編號: id, 讚美勾選: src.get(id)?.['讚美勾選'] || '' }).get(id);
+  const count = new Map();
   $$('#sv-review-body tr[data-staff]').forEach((tr) => {
     const id = tr.dataset.id;
-    if (!praise.has(id)) praise.set(id, new Set());
-    if (tr.querySelector('.sv-praise').checked) praise.get(id).add(tr.dataset.staff);
+    const name = tr.dataset.staff;
+    const row = src.get(id);
+    const on = tr.querySelector('.sv-praise').checked;
+    if (on) count.set(name, (count.get(name) || 0) + 1);
+    const o = get(id);
+    o['讚美勾選'] = setPick(o['讚美勾選'], row['月份'], name, reviewMonth, on);
     const text = tr.querySelector('.sv-text').value.trim();
-    const orig = ctx.db['問卷'].find((r) => r['編號'] === id)?.['第一題'] || '';
-    get(id)['讚美文字'] = text === orig ? '' : text;
-    get(id)['負評'] = tr.querySelector('.sv-neg').checked ? '是' : '';
+    o['讚美文字'] = text === (row['第一題'] || '') ? '' : text;
+    o['負評'] = tr.querySelector('.sv-neg').checked ? '是' : '';
   });
-  for (const [id, set] of praise) get(id)['讚美勾選'] = [...set].join(', ');
   $$('#sv-review-body .sv-env').forEach((cb) => { get(cb.closest('tr').dataset.id)['環境類'] = cb.checked ? '是' : ''; });
   const rows = [...byId.values()];
-  const counts = ctx.settings.staff.map((p) => [p.name, [...praise.values()].filter((s) => s.has(p.name)).length]).filter(([, c]) => c > 3);
-  if (counts.length && !confirm(`${counts.map(([n, c]) => `${n} 勾了 ${c} 則`).join('、')}，月報建議 2–3 則。仍要儲存嗎？`)) return;
+  const many = [...count].filter(([, c]) => c > 3);
+  if (many.length && !confirm(`${many.map(([n, c]) => `${n} 勾了 ${c} 則`).join('、')}，月報建議 2–3 則。仍要儲存嗎？`)) return;
   try {
     await ctx.write([{ action: 'upsert', payload: { sheet: '問卷', keys: ['編號'], rows } }],
-      { 動作: '整理問卷', 內容: `${reviewMonth}：讚美勾選 ${[...praise.values()].reduce((a, s) => a + s.size, 0)} 則` });
+      { 動作: '整理問卷', 內容: `${reviewMonth} 月報：讚美勾選 ${[...count.values()].reduce((a, c) => a + c, 0)} 則` });
     renderReview();
     $('#sv-saved').textContent = '已儲存';
   } catch (e) { alert('儲存失敗：' + e.message); }

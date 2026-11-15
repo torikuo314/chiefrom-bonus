@@ -1,6 +1,7 @@
 // 指標計算的共用快取（內部版、月報、季報共用）。
 import { buildIndex, staffMonthMetrics, radarScores, addMonths } from './metrics.js';
 import { orderLinesFromSheet } from './monthly.js';
+import { usedMonths } from './survey.js';
 
 let cache = null;
 
@@ -48,10 +49,10 @@ const splitNames = (s) => String(s || '').split(/[,，]/).map((x) => x.trim()).f
 
 /** 問卷：某人在指定月份被點名次數與勾選的讚美留言。field：'讚美勾選'（月報）或 '季讚美勾選'（季報）。 */
 export function praiseOf(ctx, name, months, field = '讚美勾選') {
-  const rows = ctx.db['問卷'].filter((r) => months.includes(r['月份']));
-  const mentioned = rows.filter((r) => splitNames(r['對應養護師']).includes(name));
-  const picked = mentioned.filter((r) => splitNames(r[field]).includes(name));
-  return { mentions: mentioned.length, quotes: picked.map((r) => r['讚美文字'] || r['第一題']).filter(Boolean) };
+  const mentioned = ctx.db['問卷'].filter((r) => months.includes(r['月份']) && splitNames(r['對應養護師']).includes(name));
+  // 使用者決定：留言可跨月份勾選（「姓名@月份」＝放進該月月報），點名次數仍只算本月
+  const picked = ctx.db['問卷'].filter((r) => splitNames(r['對應養護師']).includes(name) && usedMonths(r[field], r['月份'], name).some((m) => months.includes(m)));
+  return { mentions: mentioned.length, quotes: picked.sort((a, b) => (a['消費日期'] < b['消費日期'] ? 1 : -1)).map((r) => r['讚美文字'] || r['第一題']).filter(Boolean) };
 }
 
 export const prevMonthOf = (m) => addMonths(m, -1);

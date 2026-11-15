@@ -81,3 +81,7 @@ tr.done td { color: var(--ink-soft); text-decoration: line-through; }
 .rv2-q { align-items: flex-start !important; margin: 6px 0; }
 .rv2-q input { margin-top: 5px !important; }
 #rv2-form textarea { width: 100%; }
+
+tr.older td { background: #faf7f2; }
+.sv-used { color: var(--c-terracotta); font-weight: 600; }
+.sv-old { margin: 4px 0 12px; }

@@ -78,3 +78,16 @@ test('待處理指定後統計點名數與平均星數', () => {
   // 未處理的待處理 → resolved false
   assert.ok(resolveSurvey(items, {}).some((x) => !x.resolved));
 });
+
+test('讚美勾選可跨月份，相容舊格式', async () => {
+  const { parsePicks, setPick, usedMonths } = await import('../src/survey.js');
+  assert.deepEqual(parsePicks('甲甲', '2099-03'), [{ name: '甲甲', month: '2099-03' }]); // 舊格式
+  let v = setPick('甲甲', '2099-03', '甲甲', '2099-05', true);  // 3 月的留言也放進 5 月月報
+  assert.equal(v, '甲甲@2099-03, 甲甲@2099-05');
+  v = setPick(v, '2099-03', '甲甲', '2099-03', false);
+  assert.equal(v, '甲甲@2099-05');
+  v = setPick(v, '2099-03', '乙乙', '2099-05', true);
+  assert.deepEqual(usedMonths(v, '2099-03', '甲甲'), ['2099-05']);
+  assert.deepEqual(usedMonths(v, '2099-03', '乙乙'), ['2099-05']);
+  assert.equal(setPick(v, '2099-03', '甲甲', '2099-05', false), '乙乙@2099-05');
+});
