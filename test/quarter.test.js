@@ -81,13 +81,13 @@ test('結算列與參數說明', () => {
 
 test('季度經營回顧：三個月彙總與上季比較', async () => {
   const { quarterAggregate, buildReview } = await import('../src/quarter.js');
-  const m = (sales, avgTicket, orders, customers, num, den, pc, ac) => ({ sales, avgTicket, orders, customers, returnRate: { value: num / den, num, den }, productCustomers: pc, addonCount: ac });
+  const m = (sales, avgTicket, orders, customers, num, den, pc, ac) => ({ sales, avgTicket, orders, customers, returnRate: { value: num / den, num, den }, productSales: pc, addonCount: ac });
   const cur = quarterAggregate([m(100000, 4000, 25, 20, 5, 10, 3, 4), m(120000, 5000, 24, 22, 6, 10, 4, 5), m(0, null, 0, 0, 0, 0, 0, 0)]);
   assert.equal(cur.sales, 220000);
   assert.equal(cur.avgTicket, Math.round((4000 * 25 + 5000 * 24) / 49));
   assert.equal(cur.customers, 42);
   assert.equal(cur.returnRate.value, 11 / 20);
-  assert.equal(cur.productCustomers, 7);
+  assert.equal(cur.productSales, 7);
   const prev = quarterAggregate([m(90000, 4000, 20, 18, 4, 10, 2, 6)]);
   const r = buildReview({ name: '甲甲', quarter: '2099-Q2', cur, prev, quotes: ['a', 'b', 'c', 'd', 'e'], feedback: ' 表現穩定 ', goals: '回流率 60%' });
   const by = Object.fromEntries(r.items.map((x) => [x.key, x]));

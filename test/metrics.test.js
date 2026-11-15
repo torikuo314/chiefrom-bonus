@@ -130,3 +130,11 @@ test('與上月比較、連續 3 個月下滑', () => {
   assert.equal(declining([9, 8, 7]), false); // 不足 4 個月
   assert.equal(declining([{ value: 0.5 }, { value: 0.4 }, { value: 0.3 }, { value: 0.2 }]), true);
 });
+
+test('居家產品推薦＝擔任設計師訂單中的商品業績', () => {
+  const rows = [
+    R('2099-03-01', 'a', '甲甲', 3000, { orderNo: 'P1' }), R('2099-03-01', 'a', '甲甲', 1200, { orderNo: 'P1', type: '商品' }),
+    R('2099-03-02', 'b', '甲甲', 800, { orderNo: 'P2', type: '商品' }), R('2099-03-03', 'c', '甲甲', 500, { orderNo: 'P3', type: '商品', role: '助理' }),
+  ];
+  assert.equal(staffMonthMetrics(buildIndex(rows), '甲甲', '2099-03').productSales, 2000);
+});

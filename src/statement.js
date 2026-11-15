@@ -23,7 +23,7 @@ export const CARD_DEFS = [
   { key: 'avgTicket', label: '客單價', kind: 'money', unit: '元', best: true },
   { key: 'customers', label: '服務客數', kind: 'count', unit: '人', best: true },
   { key: 'returnRate', label: '顧客回流率', kind: 'pct' },
-  { key: 'productCustomers', label: '居家產品推薦', kind: 'count', unit: '位客人', best: true },
+  { key: 'productSales', label: '居家產品推薦', kind: 'money', unit: '元', best: true },
   { key: 'addonCount', label: '加值服務', kind: 'count', unit: '次', best: true },
 ];
 
@@ -32,7 +32,7 @@ export const MIX_ORDER = ['草本染髮', '頭皮護理', '護髮', '方案', '�
 
 const val = (m) => (m && typeof m === 'object' ? m.value : m);
 
-export const RANKED_KEYS = { productCustomers: 'productCustomers', addonCount: 'addonCount' }; // 使用者決定：直接用次數排名，和月報顯示的數字一致
+export const RANKED_KEYS = { productSales: 'productSales', addonCount: 'addonCount' }; // 使用者決定：直接用次數排名，和月報顯示的數字一致
 
 /**
  * 店內排名（同分同名次：1、1、3）。entries：[{ name, value }]；只回傳前 topN 名且數值 > 0 的名次。
@@ -130,7 +130,7 @@ export function buildTips({ me = {}, prev = {}, avg = {}, progress, salesBest = 
   if (low(r, avg.returnRate) || (r != null && pr != null && me.returnRate.num < prev.returnRate.num)) tips.push(pickTip(TIP_POOL.returnLow, seed));
   // 使用者決定：不提排班或休假
   if ((me.workDays && avg.workDays && me.workDays < avg.workDays * 0.9) || low(me.customers, avg.customers)) tips.push(pickTip(TIP_POOL.fewCustomers, seed));
-  if (low(me.productCustomerRate, avg.productCustomerRate)) tips.push(pickTip(TIP_POOL.productLow, seed));
+  if (low(me.productSales, avg.productSales)) tips.push(pickTip(TIP_POOL.productLow, seed));
   if (low(me.addonRate?.value, avg.addonRate)) tips.push(pickTip(TIP_POOL.addonLow, seed));
   if (!tips.length) tips.push({ icon: '🌱', text: '各項表現都很穩定，繼續保持！' });
   return [...(cheer ? [cheer] : []), ...tips.slice(0, 3)];

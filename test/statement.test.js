@@ -10,11 +10,11 @@ const rows = [
   { 月份: '2099-03', 養護師: '乙乙', 業績: '999999' },
 ];
 const cur = {
-  avgTicket: 4200, customers: 30, productCustomers: 12, addonCount: 15,
+  avgTicket: 4200, customers: 30, productSales: 12, addonCount: 15,
   returnRate: { value: 0.55, num: 11, den: 20, smallSample: true, pending: false, baseMonth: '2099-01' },
   addonRate: { value: 0.3 }, mix: { 草本染髮: 90000, 頭皮護理: 30000, 商品: 18000, 加購服務: 2000, 低敏染髮: 10000 },
 };
-const prev = { avgTicket: 4000, customers: 33, productCustomers: 9, addonCount: 15, returnRate: { value: 0.6, num: 9, den: 15 } };
+const prev = { avgTicket: 4000, customers: 33, productSales: 9, addonCount: 15, returnRate: { value: 0.6, num: 9, den: 15 } };
 
 test('近 6 個月跨年', () => {
   assert.deepEqual(lastMonths('2099-02', 6), ['2098-09', '2098-10', '2098-11', '2098-12', '2099-01', '2099-02']);
@@ -27,9 +27,9 @@ test('指標卡：本月數值＋與自己上月比較', () => {
   assert.equal(by.avgTicket.diff.dir, 'up');
   assert.equal(by.customers.diff.text, '少 3 人');
   assert.equal(by.customers.diff.dir, 'down');
-  assert.equal(by.productCustomers.value, '12');
-  assert.equal(by.productCustomers.unit, '位客人');
-  assert.equal(by.productCustomers.diff.text, '多 3 位客人');
+  assert.equal(by.productSales.value, '12');
+  assert.equal(by.productSales.unit, '元');
+  assert.equal(by.productSales.diff.text, '多 3 元');
   assert.equal(by.returnRate.diff.text, '多 2 人次回流'); // 用人次表達
   assert.equal(by.returnRate.diff.dir, 'up');
   assert.equal(by.returnRate.small, true);
@@ -64,8 +64,8 @@ test('月報內容', () => {
 test('店內前三名：同分同名次、0% 不排名、第 4 名以後不顯示', () => {
   const r = topRanks([{ name: 'a', value: 0.3 }, { name: 'b', value: 0.3 }, { name: 'c', value: 0.2 }, { name: 'd', value: 0.1 }, { name: 'e', value: 0 }, { name: 'f', value: null }]);
   assert.deepEqual(r, { a: 1, b: 1, c: 3 });
-  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev, ranks: { productCustomers: 2 }, compared: true });
-  assert.equal(s.cards.find((c) => c.key === 'productCustomers').rank, 2);
+  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev, ranks: { productSales: 2 }, compared: true });
+  assert.equal(s.cards.find((c) => c.key === 'productSales').rank, 2);
   assert.equal(s.cards.find((c) => c.key === 'addonCount').rank, null);
   assert.equal(s.cards.find((c) => c.key === 'addonCount').ranked, true); // 沒進前三 → 顯示加油
   assert.equal(s.cards.find((c) => c.key === 'avgTicket').ranked, false);
@@ -78,9 +78,9 @@ test('個人新高與 6 個月走勢', async () => {
   assert.equal(isPersonalBest(9, [5, 8, 9]), false);   // 持平不算
   assert.equal(isPersonalBest(10, [null, 8, 9]), false); // 紀錄不足 3 個月
   assert.equal(isPersonalBest(0, [0, 0, 0]), false);
-  const hist = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20].map((n) => ({ productCustomers: n }));
-  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur: { ...cur, productCustomers: 20 }, prev, history: hist });
-  const c = s.cards.find((x) => x.key === 'productCustomers');
+  const hist = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20].map((n) => ({ productSales: n }));
+  const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur: { ...cur, productSales: 20 }, prev, history: hist });
+  const c = s.cards.find((x) => x.key === 'productSales');
   assert.equal(c.best, true);
   assert.deepEqual(c.spark, [11, 12, 13, 14, 15, 20]);
   assert.equal('history' in c, false);
@@ -89,8 +89,8 @@ test('個人新高與 6 個月走勢', async () => {
 test('給你的小建議', async () => {
   const { buildTips } = await import('../src/statement.js');
   const below = { level: 0, toNext: 37000 };
-  const t1 = buildTips({ me: { avgTicket: 3700, customers: 27, returnRate: { value: 0.2, num: 5 }, productCustomerRate: 0.05, addonRate: { value: 0.1 } },
-    avg: { returnRate: 0.4, productCustomerRate: 0.2, addonRate: 0.3 }, progress: below });
+  const t1 = buildTips({ me: { avgTicket: 3700, customers: 27, returnRate: { value: 0.2, num: 5 }, productSales: 0.05, addonRate: { value: 0.1 } },
+    avg: { returnRate: 0.4, productSales: 0.2, addonRate: 0.3 }, progress: below });
   assert.equal(t1.length, 3);
   assert.match(t1[0].text, /下個月每位客人平均多約 1,380 元.*第一門檻/); // 37000 / 27 ≈ 1370.4 → 1,380
   assert.ok(['💪', '💬', '📅'].includes(t1[1].icon)); // 回流率偏少（輪替說法）
@@ -100,8 +100,8 @@ test('給你的小建議', async () => {
   assert.ok(['📞', '🍂', '🤝'].includes(tw[1].icon));
   assert.ok(!/休假|排班/.test(JSON.stringify(tw)));
   // 表現好：只鼓勵
-  const t2 = buildTips({ me: { avgTicket: 4000, returnRate: { value: 0.5, num: 9 }, productCustomerRate: 0.3, addonRate: { value: 0.4 } },
-    prev: { returnRate: { value: 0.4, num: 8 } }, avg: { returnRate: 0.4, productCustomerRate: 0.2, addonRate: 0.3 }, progress: { level: 2 } });
+  const t2 = buildTips({ me: { avgTicket: 4000, returnRate: { value: 0.5, num: 9 }, productSales: 0.3, addonRate: { value: 0.4 } },
+    prev: { returnRate: { value: 0.4, num: 8 } }, avg: { returnRate: 0.4, productSales: 0.2, addonRate: 0.3 }, progress: { level: 2 } });
   assert.deepEqual(t2.map((x) => x.text), ['各項表現都很穩定，繼續保持！']);
   // 回流人次比上月少 → 提醒
   const t3 = buildTips({ me: { returnRate: { value: 0.5, num: 7 } }, prev: { returnRate: { value: 0.5, num: 9 } }, avg: { returnRate: 0.5 }, progress: { level: 2 } });
@@ -141,9 +141,9 @@ test('本季截至當月的累計預支', () => {
 });
 
 test('勾選 3 則留言時全部顯示，建議改為最多 3 則', () => {
-  const me = { avgTicket: 3700, customers: 27, returnRate: { value: 0.2, num: 5 }, productCustomerRate: 0.05, addonRate: { value: 0.1 } };
-  const s = buildStatement(rows, '甲甲', '2099-02', P, [], { cur: me, prev: {}, storeAvg: { returnRate: 0.4, productCustomerRate: 0.2, addonRate: 0.3 },
-    ranks: { productCustomers: 1 }, revisit: 10, praise: { mentions: 3, quotes: ['a', 'b', 'c'] } });
+  const me = { avgTicket: 3700, customers: 27, returnRate: { value: 0.2, num: 5 }, productSales: 0.05, addonRate: { value: 0.1 } };
+  const s = buildStatement(rows, '甲甲', '2099-02', P, [], { cur: me, prev: {}, storeAvg: { returnRate: 0.4, productSales: 0.2, addonRate: 0.3 },
+    ranks: { productSales: 1 }, revisit: 10, praise: { mentions: 3, quotes: ['a', 'b', 'c'] } });
   assert.equal(s.praise.quotes.length, 3);
   assert.ok(s.tips.length <= 3);
 });

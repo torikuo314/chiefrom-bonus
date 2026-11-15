@@ -74,7 +74,7 @@ export function storeAvgOf(ctx, month) {
   const avg = (vals) => { const v = vals.filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
   return {
     returnRate: avg(cmp.map((m) => m.returnRate?.value)),
-    productCustomerRate: avg(cmp.map((m) => m.productCustomerRate)),
+    productSales: avg(cmp.map((m) => m.productSales)),
     addonRate: avg(cmp.map((m) => m.addonRate?.value)),
     workDays: avg(cmp.map((m) => m.workDays || null)),
     customers: avg(cmp.map((m) => m.customers || null)),

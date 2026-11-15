@@ -120,6 +120,8 @@ export function staffMonthMetrics(index, staff, month, settings = DEFAULT_METRIC
     addonRate: ratio(addonOrders.size, designerOrders.size, settings),      // 7.
     orders: designerOrders.size,
     // 使用者決定：月報改用次數呈現（較具體、較有激勵感），排名仍用比例以求公平
+    // 使用者決定：居家產品推薦看商品業績（擔任設計師的訂單中，分類＝商品的業績）
+    productSales: sum(designer.filter((r) => r.type === '商品')),
     productCustomers: new Set(designer.filter((r) => r.type === '商品').map((r) => r.customer || `#${r.orderNo}`)).size,
     productCustomerRate: (() => {
       const all = new Set(designer.map((r) => r.customer || `#${r.orderNo}`)).size;
