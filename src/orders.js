@@ -13,6 +13,7 @@ export const ORDER_FIELDS = [
   { key: 'role', label: '職位', required: false },
   { key: 'amount', label: '業績', required: true },
   { key: 'assist', label: '項目協助', required: false },
+  { key: 'pay', label: '消費方式', required: false },
 ];
 export const DEFAULT_ORDER_MAPPING = Object.fromEntries(ORDER_FIELDS.map((f) => [f.key, f.label]));
 
@@ -51,6 +52,7 @@ export function parseOrders(rows, { mapping = DEFAULT_ORDER_MAPPING, resolve, ca
   const idx = Object.fromEntries(Object.entries(mapping).map(([k, v]) => [k, headers.indexOf(v)]));
   const get = (r, k) => (idx[k] >= 0 ? r[idx[k]] : null);
   const lineCount = new Map();
+  const payByOrder = new Map();
   const seen = new Set();
   const lines = [], excluded = [], duplicates = [];
   rows.slice(1).forEach((r, i) => {
@@ -58,14 +60,18 @@ export function parseOrders(rows, { mapping = DEFAULT_ORDER_MAPPING, resolve, ca
     const orderNo = String(get(r, 'orderNo') ?? '').trim();
     const date = toDate(get(r, 'time'));
     if (!orderNo || !date) { excluded.push({ rowNo: i + 2, reason: '缺訂單號碼或日期' }); return; }
-    const lineNo = (lineCount.get(orderNo) || 0) + 1;
-    lineCount.set(orderNo, lineNo);
-    const key = `${orderNo}#${lineNo}`;
+    const store = String(get(r, 'store') ?? '').trim();
+    const orderKey = `${store}#${orderNo}`; // 神美的訂單號碼在不同門店會重複
+    const lineNo = (lineCount.get(orderKey) || 0) + 1;
+    lineCount.set(orderKey, lineNo);
+    const key = `${orderKey}#${lineNo}`;
     const category = String(get(r, 'category') ?? '').trim();
+    const pay = String(get(r, 'pay') ?? '').trim();
+    if (pay) payByOrder.set(orderKey, pay);
     const rawStaff = String(get(r, 'staff') ?? '').trim();
     const line = {
-      rowNo: i + 2, key, orderNo, lineNo, date, month: monthOf(date),
-      store: String(get(r, 'store') ?? '').trim(),
+      rowNo: i + 2, key, orderNo, orderKey, lineNo, date, month: monthOf(date),
+      store,
       customer: String(get(r, 'phone') ?? '').replace(/\D/g, ''),
       category, type: classify(category, categoryMap),
       item: String(get(r, 'item') ?? '').trim(),
@@ -79,6 +85,7 @@ export function parseOrders(rows, { mapping = DEFAULT_ORDER_MAPPING, resolve, ca
     if (res.status === 'excluded') { excluded.push({ ...line, staff: res.name, reason: '固定排除' }); return; }
     lines.push({ ...line, staff: res.status === 'staff' ? res.name : '', status: res.status });
   });
+  markVoucherRedemptions([...lines, ...excluded], payByOrder);
   const months = [...new Set([...lines, ...excluded].map((l) => l.month).filter(Boolean))].sort();
   return { headers, lines, excluded, duplicates, months };
 }
@@ -129,4 +136,27 @@ export function mergeParsed(list) {
   }
   out.months = [...new Set([...out.lines, ...out.excluded].map((l) => l.month).filter(Boolean))].sort();
   return out;
+}
+
+/** 消費方式中的商品券金額，例如「儲值金：1380、商品券：2300」→ 2300。 */
+export function voucherAmount(pay) {
+  let total = 0;
+  for (const m of String(pay || '').matchAll(/商品券\s*[：:]\s*([\d,]+)/g)) total += Number(m[1].replace(/,/g, '')) || 0;
+  return total;
+}
+
+/**
+ * 用商品券兌換的商品：神美業績報表算「使用商品券」，不算「商品銷售」。
+ * 依訂單的商品券金額，把該訂單的「商品」列依序改標為「商品券兌換」（業績仍算給養護師，只是不算居家產品推薦）。
+ */
+export function markVoucherRedemptions(lines, payByOrder) {
+  const byOrder = new Map();
+  for (const l of lines) if (l.type === '商品') (byOrder.get(l.orderKey) || byOrder.set(l.orderKey, []).get(l.orderKey)).push(l);
+  for (const [orderKey, items] of byOrder) {
+    let left = voucherAmount(payByOrder.get(orderKey));
+    for (const l of items.sort((a, b) => a.lineNo - b.lineNo)) {
+      if (left <= 0) break;
+      if (l.amount > 0 && l.amount <= left + 0.5) { l.type = '商品券兌換'; left -= l.amount; }
+    }
+  }
 }

@@ -24,7 +24,7 @@ export function orderLineToSheetRow(l, batchId) {
 /** 交易明細列（字串）→ metrics.js 使用的 row。 */
 export function orderLinesFromSheet(rows) {
   return rows.map((r) => ({
-    orderNo: String(r['訂單號碼']), lineNo: n(r['列序']), date: String(r['訂單時間']).slice(0, 10), month: r['月份'],
+    orderNo: String(r['訂單號碼']), orderKey: `${r['店家']}#${r['訂單號碼']}`, lineNo: n(r['列序']), date: String(r['訂單時間']).slice(0, 10), month: r['月份'],
     store: r['店家'], customer: r['客人雜湊'] || '', category: r['分類'], type: r['類別'], item: r['品項'],
     staff: r['工作人員'], role: r['職位'] === '助理' ? '助理' : '設計師', amount: n(r['業績']), assist: n(r['項目協助']),
   }));
@@ -44,7 +44,7 @@ export function monthStatsFromLines(lines, month, excludeStores = ['夥伴店'])
     if (l.type === '商品') p.product += l.amount;
     if (l.role === '設計師') {
       p.designerSales += l.amount;
-      p.orders.add(l.orderNo);
+      p.orders.add(l.orderKey || `${l.store}#${l.orderNo}`);
       if (l.customer) p.customers.add(l.customer);
     }
   }

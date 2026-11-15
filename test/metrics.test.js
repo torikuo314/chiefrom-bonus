@@ -146,3 +146,10 @@ test('加值服務＝附加服務＋方案的業績', () => {
   ];
   assert.equal(staffMonthMetrics(buildIndex(rows), '甲甲', '2099-03').addonSales, 1880);
 });
+
+test('客單價與訂單數以「門店＋訂單號碼」區分', () => {
+  const rows = [R('2099-03-01', 'a', '甲甲', 3000, { orderNo: 'D1', store: '本館' }), R('2099-03-01', 'b', '甲甲', 1000, { orderNo: 'D1', store: '二館' })];
+  const m = staffMonthMetrics(buildIndex(rows), '甲甲', '2099-03');
+  assert.equal(m.orders, 2);
+  assert.equal(m.avgTicket, 2000);
+});

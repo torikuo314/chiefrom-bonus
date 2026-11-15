@@ -37,7 +37,8 @@ test('解析：列序、類別、職位、排除與待處理', () => {
   const p = parseOrders(rows, { resolve });
   assert.deepEqual(p.months, ['2099-01', '2099-02']);
   const a1 = p.lines.filter((l) => l.orderNo === 'A1');
-  assert.deepEqual(a1.map((l) => l.key), ['A1#1', 'A1#2', 'A1#3']);
+  assert.deepEqual(a1.map((l) => l.lineNo), [1, 2, 3]);
+  assert.equal(a1[0].key, '頭沐｜本館#A1#1');
   assert.deepEqual(a1.map((l) => l.type), ['草本染髮', '加購服務', '草本染髮']);
   assert.equal(a1[2].role, '助理');
   assert.equal(a1[0].assist, 300);
@@ -82,4 +83,33 @@ test('多個檔案期間重疊時去重', async () => {
   const m = mergeParsed([a, b]);
   assert.equal(m.lines.length, a.lines.length);
   assert.equal(m.duplicates.length, 3);
+});
+
+test('商品券兌換的商品不算商品銷售（但仍是業績）', async () => {
+  const { voucherAmount } = await import('../src/orders.js');
+  assert.equal(voucherAmount('儲值金：1380、商品券：2,300'), 2300);
+  assert.equal(voucherAmount('現場付款：500'), 0);
+  const rs = [
+    H,
+    row({ ...base, 訂單號碼: 'V1', 訂單時間: '2099-03-01', 分類: '商品', 工作人員: '甲甲', 業績: 2150, 消費方式: '商品券：2300' }),
+    row({ ...base, 訂單號碼: 'V2', 訂單時間: '2099-03-02', 分類: '【草本染髮】－x', 工作人員: '甲甲', 業績: 3000, 消費方式: '儲值金：1380、商品券：1200' }),
+    row({ ...base, 訂單號碼: 'V2', 訂單時間: '2099-03-02', 分類: '商品', 工作人員: '甲甲', 業績: 1200 }),
+    row({ ...base, 訂單號碼: 'V2', 訂單時間: '2099-03-02', 分類: '商品', 工作人員: '甲甲', 業績: 800 }),
+    row({ ...base, 訂單號碼: 'V3', 訂單時間: '2099-03-03', 分類: '商品', 工作人員: '甲甲', 業績: 900, 消費方式: '現場付款：900' }),
+  ];
+  const p = parseOrders(rs, { resolve });
+  assert.deepEqual(p.lines.map((l) => l.type), ['商品券兌換', '草本染髮', '商品券兌換', '商品', '商品']);
+  assert.equal(p.lines.reduce((a, l) => a + l.amount, 0), 2150 + 3000 + 1200 + 800 + 900); // 業績不變
+});
+
+test('不同門店的相同訂單號碼不會混在一起', async () => {
+  const { mergeParsed } = await import('../src/orders.js');
+  const a = parseOrders([H, row({ ...base, 店家: '本館', 訂單號碼: 'S1', 訂單時間: '2099-03-01', 分類: '商品', 工作人員: '甲甲', 業績: 2000, 消費方式: '商品券：2000' })], { resolve });
+  const b = parseOrders([H, row({ ...base, 店家: '二館', 訂單號碼: 'S1', 訂單時間: '2099-03-01', 分類: '商品', 工作人員: '甲甲', 業績: 900, 消費方式: '現場付款：900' })], { resolve });
+  const m = mergeParsed([a, b]);
+  assert.equal(m.lines.length, 2);                 // 不會被當成重複
+  assert.deepEqual(m.lines.map((l) => l.type), ['商品券兌換', '商品']);
+  const one = parseOrders([H, a.lines.length && row({ ...base, 店家: '本館', 訂單號碼: 'S1', 訂單時間: '2099-03-01', 分類: '商品', 工作人員: '甲甲', 業績: 2000, 消費方式: '商品券：2000' }),
+    row({ ...base, 店家: '二館', 訂單號碼: 'S1', 訂單時間: '2099-03-01', 分類: '商品', 工作人員: '甲甲', 業績: 900, 消費方式: '現場付款：900' })], { resolve });
+  assert.deepEqual(one.lines.map((l) => [l.store, l.lineNo, l.type]), [['本館', 1, '商品券兌換'], ['二館', 1, '商品']]);
 });

@@ -1,6 +1,6 @@
 // 經營指標計算核心（v2 §6）。純函式，不含 I/O。
 // 輸入的交易列（row）格式：
-//   { orderNo, lineNo, date: 'YYYY-MM-DD', store, customer: 手機或雜湊（空字串＝無）,
+//   { orderNo, orderKey（店家#訂單號碼）, lineNo, date: 'YYYY-MM-DD', store, customer: 手機或雜湊（空字串＝無）,
 //     category: 分類（神美原始值）, type: 類別（classify 後）, staff, role: '設計師'|'助理',
 //     amount: 業績, assist: 項目協助 }
 
@@ -58,6 +58,9 @@ export const daysBetween = (a, b) => toDay(b) - toDay(a);
  * 建立共用索引：每位客人的到店日期（排序、不重複）、首次消費日與首次消費的設計師。
  * 只用「計入指標」的列（排除夥伴店）。
  */
+/** 訂單識別：店家＋訂單號碼（神美訂單號碼在不同門店會重複）。 */
+export const orderKeyOf = (r) => r.orderKey || `${r.store}#${r.orderNo}`;
+
 export function buildIndex(rows, settings = DEFAULT_METRIC_SETTINGS) {
   const ex = new Set(settings.excludeStores);
   const valid = rows.filter((r) => r.date && !ex.has(r.store));
@@ -104,11 +107,11 @@ export function staffMonthMetrics(index, staff, month, settings = DEFAULT_METRIC
   const assistant = inMonth.filter((r) => r.role === '助理');
   const sum = (arr) => arr.reduce((a, r) => a + r.amount, 0);
 
-  const designerOrders = new Set(designer.map((r) => r.orderNo));
+  const designerOrders = new Set(designer.map(orderKeyOf));
   const designerSales = sum(designer);
 
   // 7. 加購服務率：X 擔任設計師的訂單中，含「加購服務」列的訂單比例
-  const addonOrders = new Set(index.valid.filter((r) => designerOrders.has(r.orderNo) && r.type === '加購服務').map((r) => r.orderNo));
+  const addonOrders = new Set(index.valid.filter((r) => designerOrders.has(orderKeyOf(r)) && r.type === '加購服務').map(orderKeyOf));
 
   return {
     staff, month,
@@ -122,10 +125,10 @@ export function staffMonthMetrics(index, staff, month, settings = DEFAULT_METRIC
     // 使用者決定：月報改用次數呈現（較具體、較有激勵感），排名仍用比例以求公平
     // 使用者決定：居家產品推薦看商品業績（擔任設計師的訂單中，分類＝商品的業績）
     productSales: sum(designer.filter((r) => r.type === '商品')),
-    productCustomers: new Set(designer.filter((r) => r.type === '商品').map((r) => r.customer || `#${r.orderNo}`)).size,
+    productCustomers: new Set(designer.filter((r) => r.type === '商品').map((r) => r.customer || `#${orderKeyOf(r)}`)).size,
     productCustomerRate: (() => {
-      const all = new Set(designer.map((r) => r.customer || `#${r.orderNo}`)).size;
-      return all ? new Set(designer.filter((r) => r.type === '商品').map((r) => r.customer || `#${r.orderNo}`)).size / all : null;
+      const all = new Set(designer.map((r) => r.customer || `#${orderKeyOf(r)}`)).size;
+      return all ? new Set(designer.filter((r) => r.type === '商品').map((r) => r.customer || `#${orderKeyOf(r)}`)).size / all : null;
     })(),
     addonCount: addonOrders.size,
     // 使用者決定：加值服務＝附加服務＋A／B 方案（現場加購）的業績金額
@@ -153,7 +156,7 @@ export function returnRate(index, staff, month, settings = DEFAULT_METRIC_SETTIN
   if (!index.dataStart || index.dataStart > `${base}-01`) return pendingResult({ baseMonth: base });
   const orders = new Map(); // orderNo -> { customer, date }
   for (const r of index.valid) {
-    if (r.staff === staff && r.role === '設計師' && monthOf(r.date) === base && r.customer) orders.set(r.orderNo, { customer: r.customer, date: r.date });
+    if (r.staff === staff && r.role === '設計師' && monthOf(r.date) === base && r.customer) orders.set(orderKeyOf(r), { customer: r.customer, date: r.date });
   }
   let num = 0;
   for (const o of orders.values()) {
