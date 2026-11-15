@@ -138,3 +138,11 @@ test('居家產品推薦＝擔任設計師訂單中的商品業績', () => {
   ];
   assert.equal(staffMonthMetrics(buildIndex(rows), '甲甲', '2099-03').productSales, 2000);
 });
+
+test('加值服務＝附加服務＋方案的業績', () => {
+  const rows = [
+    R('2099-03-01', 'a', '甲甲', 3000, { orderNo: 'V1' }), R('2099-03-01', 'a', '甲甲', 500, { orderNo: 'V1', type: '加購服務' }),
+    R('2099-03-02', 'b', '甲甲', 1380, { orderNo: 'V2', type: '方案' }), R('2099-03-03', 'c', '甲甲', 999, { orderNo: 'V3', type: '商品' }),
+  ];
+  assert.equal(staffMonthMetrics(buildIndex(rows), '甲甲', '2099-03').addonSales, 1880);
+});

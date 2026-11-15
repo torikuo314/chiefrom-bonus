@@ -10,11 +10,11 @@ const rows = [
   { 月份: '2099-03', 養護師: '乙乙', 業績: '999999' },
 ];
 const cur = {
-  avgTicket: 4200, customers: 30, productSales: 12, addonCount: 15,
+  avgTicket: 4200, customers: 30, productSales: 12, addonSales: 15,
   returnRate: { value: 0.55, num: 11, den: 20, smallSample: true, pending: false, baseMonth: '2099-01' },
-  addonRate: { value: 0.3 }, mix: { 草本染髮: 90000, 頭皮護理: 30000, 商品: 18000, 加購服務: 2000, 低敏染髮: 10000 },
+  mix: { 草本染髮: 90000, 頭皮護理: 30000, 商品: 18000, 加購服務: 2000, 低敏染髮: 10000 },
 };
-const prev = { avgTicket: 4000, customers: 33, productSales: 9, addonCount: 15, returnRate: { value: 0.6, num: 9, den: 15 } };
+const prev = { avgTicket: 4000, customers: 33, productSales: 9, addonSales: 15, returnRate: { value: 0.6, num: 9, den: 15 } };
 
 test('近 6 個月跨年', () => {
   assert.deepEqual(lastMonths('2099-02', 6), ['2098-09', '2098-10', '2098-11', '2098-12', '2099-01', '2099-02']);
@@ -34,7 +34,7 @@ test('指標卡：本月數值＋與自己上月比較', () => {
   assert.equal(by.returnRate.diff.dir, 'up');
   assert.equal(by.returnRate.small, true);
   assert.equal(buildCard(CARD_DEFS[2], { returnRate: { value: 0.5 } }, { returnRate: { pending: true } }).diff, null); // 上月資料累積中 → 不比較
-  assert.equal(by.addonCount.diff.text, '與上月持平');
+  assert.equal(by.addonSales.diff.text, '與上月持平');
   assert.equal(buildCard(CARD_DEFS[2], { returnRate: { pending: true } }, null).value, '資料累積中');
   assert.equal(CARD_DEFS.length, 5);
 });
@@ -66,10 +66,10 @@ test('店內前三名：同分同名次、0% 不排名、第 4 名以後不顯�
   assert.deepEqual(r, { a: 1, b: 1, c: 3 });
   const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev, ranks: { productSales: 2 }, compared: true });
   assert.equal(s.cards.find((c) => c.key === 'productSales').rank, 2);
-  assert.equal(s.cards.find((c) => c.key === 'addonCount').rank, null);
-  assert.equal(s.cards.find((c) => c.key === 'addonCount').ranked, true); // 沒進前三 → 顯示加油
+  assert.equal(s.cards.find((c) => c.key === 'addonSales').rank, null);
+  assert.equal(s.cards.find((c) => c.key === 'addonSales').ranked, true); // 沒進前三 → 顯示加油
   assert.equal(s.cards.find((c) => c.key === 'avgTicket').ranked, false);
-  assert.equal(buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev }).cards.find((c) => c.key === 'addonCount').ranked, false); // 不納入比較 → 不顯示
+  assert.equal(buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev }).cards.find((c) => c.key === 'addonSales').ranked, false); // 不納入比較 → 不顯示
 });
 
 test('個人新高與 6 個月走勢', async () => {
@@ -89,8 +89,8 @@ test('個人新高與 6 個月走勢', async () => {
 test('給你的小建議', async () => {
   const { buildTips } = await import('../src/statement.js');
   const below = { level: 0, toNext: 37000 };
-  const t1 = buildTips({ me: { avgTicket: 3700, customers: 27, returnRate: { value: 0.2, num: 5 }, productSales: 0.05, addonRate: { value: 0.1 } },
-    avg: { returnRate: 0.4, productSales: 0.2, addonRate: 0.3 }, progress: below });
+  const t1 = buildTips({ me: { avgTicket: 3700, customers: 27, returnRate: { value: 0.2, num: 5 }, productSales: 0.05, addonSales: 0.1 },
+    avg: { returnRate: 0.4, productSales: 0.2, addonSales: 0.3 }, progress: below });
   assert.equal(t1.length, 3);
   assert.match(t1[0].text, /下個月每位客人平均多約 1,380 元.*第一門檻/); // 37000 / 27 ≈ 1370.4 → 1,380
   assert.ok(['💪', '💬', '📅'].includes(t1[1].icon)); // 回流率偏少（輪替說法）
@@ -100,8 +100,8 @@ test('給你的小建議', async () => {
   assert.ok(['📞', '🍂', '🤝'].includes(tw[1].icon));
   assert.ok(!/休假|排班/.test(JSON.stringify(tw)));
   // 表現好：只鼓勵
-  const t2 = buildTips({ me: { avgTicket: 4000, returnRate: { value: 0.5, num: 9 }, productSales: 0.3, addonRate: { value: 0.4 } },
-    prev: { returnRate: { value: 0.4, num: 8 } }, avg: { returnRate: 0.4, productSales: 0.2, addonRate: 0.3 }, progress: { level: 2 } });
+  const t2 = buildTips({ me: { avgTicket: 4000, returnRate: { value: 0.5, num: 9 }, productSales: 0.3, addonSales: 0.4 },
+    prev: { returnRate: { value: 0.4, num: 8 } }, avg: { returnRate: 0.4, productSales: 0.2, addonSales: 0.3 }, progress: { level: 2 } });
   assert.deepEqual(t2.map((x) => x.text), ['各項表現都很穩定，繼續保持！']);
   // 回流人次比上月少 → 提醒
   const t3 = buildTips({ me: { returnRate: { value: 0.5, num: 7 } }, prev: { returnRate: { value: 0.5, num: 9 } }, avg: { returnRate: 0.5 }, progress: { level: 2 } });
@@ -141,8 +141,8 @@ test('本季截至當月的累計預支', () => {
 });
 
 test('勾選 3 則留言時全部顯示，建議改為最多 3 則', () => {
-  const me = { avgTicket: 3700, customers: 27, returnRate: { value: 0.2, num: 5 }, productSales: 0.05, addonRate: { value: 0.1 } };
-  const s = buildStatement(rows, '甲甲', '2099-02', P, [], { cur: me, prev: {}, storeAvg: { returnRate: 0.4, productSales: 0.2, addonRate: 0.3 },
+  const me = { avgTicket: 3700, customers: 27, returnRate: { value: 0.2, num: 5 }, productSales: 0.05, addonSales: 0.1 };
+  const s = buildStatement(rows, '甲甲', '2099-02', P, [], { cur: me, prev: {}, storeAvg: { returnRate: 0.4, productSales: 0.2, addonSales: 0.3 },
     ranks: { productSales: 1 }, revisit: 10, praise: { mentions: 3, quotes: ['a', 'b', 'c'] } });
   assert.equal(s.praise.quotes.length, 3);
   assert.ok(s.tips.length <= 3);

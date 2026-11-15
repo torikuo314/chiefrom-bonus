@@ -128,6 +128,8 @@ export function staffMonthMetrics(index, staff, month, settings = DEFAULT_METRIC
       return all ? new Set(designer.filter((r) => r.type === '商品').map((r) => r.customer || `#${r.orderNo}`)).size / all : null;
     })(),
     addonCount: addonOrders.size,
+    // 使用者決定：加值服務＝附加服務＋A／B 方案（現場加購）的業績金額
+    addonSales: sum(designer.filter((r) => r.type === '加購服務' || r.type === '方案')),
     workDays: new Set(inMonth.map((r) => r.date)).size, // 有接客（任何職位）的天數
     mix: designer.reduce((m, r) => ((m[r.type] = (m[r.type] || 0) + r.amount), m), {}),
     // 內部指標

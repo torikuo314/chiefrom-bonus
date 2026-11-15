@@ -126,7 +126,7 @@ export function quarterAggregate(list) {
     customers: sum((m) => m.customers),
     returnRate: den ? { value: num / den, num, den, pending: false } : { value: null, pending: ms.every((m) => m.returnRate?.pending) },
     productSales: sum((m) => m.productSales),
-    addonCount: sum((m) => m.addonCount),
+    addonSales: sum((m) => m.addonSales),
   };
 }
 
@@ -136,7 +136,7 @@ export const REVIEW_DEFS = [
   { key: 'customers', label: '服務客數', unit: '人次' },
   { key: 'returnRate', label: '顧客回流率', kind: 'pct' },
   { key: 'productSales', label: '居家產品推薦', unit: '元' },
-  { key: 'addonCount', label: '加值服務', unit: '次' },
+  { key: 'addonSales', label: '加值服務', unit: '元' },
 ];
 
 export function buildReview({ name, quarter, cur, prev, quotes = [], feedback = '', goals = '' }) {

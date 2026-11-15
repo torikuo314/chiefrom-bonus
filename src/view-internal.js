@@ -14,8 +14,8 @@ export const CORE = [
   { key: 'avgTicket', label: '客單價', kind: 'money' },
   { key: 'customers', label: '服務客數', kind: 'count' },
   { key: 'returnRate', label: '顧客回流率', kind: 'pct' },
-  { key: 'productRatio', label: '商品推薦佔比', kind: 'pct' },
-  { key: 'addonRate', label: '加購服務率', kind: 'pct' },
+  { key: 'productSales', label: '居家產品推薦', kind: 'money' },
+  { key: 'addonSales', label: '加值服務', kind: 'money' },
 ];
 
 export function fmtMetric(m, kind) {

@@ -81,7 +81,7 @@ test('結算列與參數說明', () => {
 
 test('季度經營回顧：三個月彙總與上季比較', async () => {
   const { quarterAggregate, buildReview } = await import('../src/quarter.js');
-  const m = (sales, avgTicket, orders, customers, num, den, pc, ac) => ({ sales, avgTicket, orders, customers, returnRate: { value: num / den, num, den }, productSales: pc, addonCount: ac });
+  const m = (sales, avgTicket, orders, customers, num, den, pc, ac) => ({ sales, avgTicket, orders, customers, returnRate: { value: num / den, num, den }, productSales: pc, addonSales: ac });
   const cur = quarterAggregate([m(100000, 4000, 25, 20, 5, 10, 3, 4), m(120000, 5000, 24, 22, 6, 10, 4, 5), m(0, null, 0, 0, 0, 0, 0, 0)]);
   assert.equal(cur.sales, 220000);
   assert.equal(cur.avgTicket, Math.round((4000 * 25 + 5000 * 24) / 49));
@@ -94,7 +94,7 @@ test('季度經營回顧：三個月彙總與上季比較', async () => {
   assert.equal(by.sales.diff.text, '多 130,000 元');
   assert.equal(by.returnRate.value, '55%');
   assert.equal(by.returnRate.diff.text, '多 7 人次回流');
-  assert.equal(by.addonCount.diff.text, '多 3 次');
+  assert.equal(by.addonSales.diff.text, '多 3 元');
   assert.equal(r.quotes.length, 4);
   assert.equal(r.feedback, '表現穩定');
   assert.equal(quarterAggregate([null, { sales: 0 }]), null); // 沒資料
