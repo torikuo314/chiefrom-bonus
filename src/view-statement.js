@@ -123,7 +123,7 @@ function sheetHtml(d) {
   </section>` : ''}
 
   <section class="st-chart mr-trend">
-    <h2>近 6 個月業績</h2>
+    <h2>近 5 個月業績</h2>
     <canvas class="c-trend" width="666" height="${d.praise ? 130 : 180}"></canvas>
   </section>
 

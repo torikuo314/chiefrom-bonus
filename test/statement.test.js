@@ -54,7 +54,8 @@ test('月報內容', () => {
   assert.equal(s.cards.length, 5);
   assert.equal(s.cards.find((c) => c.key === 'returnRate').note, '1 月服務 20 人次，有 11 人次在 60 天內回來');
   assert.equal(s.smallSampleNote, true);
-  assert.equal(s.trend[4].sales, 100000);
+  assert.equal(s.trend.length, 5);
+  assert.equal(s.trend[3].sales, 100000);
   assert.equal(s.praise.quotes.length, 3); // 最多 3 則
   assert.equal(buildStatement(rows, '甲甲', '2099-03', P, [], { cur, praise: { mentions: 0, quotes: [] } }).praise, null);
   assert.equal(buildStatement(rows, '甲甲', '2099-03', P, [], { cur, praise: { mentions: 2, quotes: [] } }).praise, null); // 有點名但沒勾選 → 隱藏

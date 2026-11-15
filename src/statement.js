@@ -154,7 +154,7 @@ export function buildStatement(monthlyRows, name, month, params, advanceRows = [
   const row = mine.find((r) => r['月份'] === month);
   if (!row) throw new Error(`${name} ${month} 沒有月業績資料`);
   const sales = effectiveSales(row);
-  const trend = lastMonths(month, 6).map((m) => {
+  const trend = lastMonths(month, 5).map((m) => {
     const r = mine.find((x) => x['月份'] === m);
     return { month: m, sales: r ? effectiveSales(r) : null };
   });
