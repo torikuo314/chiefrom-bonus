@@ -32,8 +32,7 @@ export const MIX_ORDER = ['草本染髮', '頭皮護理', '護髮', '方案', '�
 
 const val = (m) => (m && typeof m === 'object' ? m.value : m);
 
-// 排名用比例計算（客人少的人也有公平機會），月報上顯示次數
-export const RANKED_KEYS = { productCustomers: 'productCustomerRate', addonCount: 'addonRate' };
+export const RANKED_KEYS = { productCustomers: 'productCustomers', addonCount: 'addonCount' }; // 使用者決定：直接用次數排名，和月報顯示的數字一致
 
 /**
  * 店內排名（同分同名次：1、1、3）。entries：[{ name, value }]；只回傳前 topN 名且數值 > 0 的名次。
