@@ -252,3 +252,5 @@
 /* 小建議：圓點 */
 .mr-tip-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin: 0 7px 0 6px; position: relative; top: -2px; }
 .mr-tips li { align-items: center !important; }
+/* 預估獎金的說明文字縮小（非重點） */
+.mrsheet .st-bonus-note { font-size: 10.5px !important; line-height: 1.4 !important; color: #8a8278 !important; }

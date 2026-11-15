@@ -128,7 +128,7 @@ function sheetHtml(d) {
   </section>
 
   ${d.praise ? `<section class="mr-praise">
-    <h2>客人怎麼說 <span>本月被客人點名 ${d.praise.mentions} 次</span></h2>
+    <h2>客人有提到你喔！ <span>本月收到的問卷回覆中，有 ${d.praise.mentions} 位客人提到你</span></h2>
     <div class="mr-quotes">${d.praise.quotes.map((q) => `<blockquote><i>“</i>${esc(q.length > 60 ? q.slice(0, 58) + '…' : q)}</blockquote>`).join('')}</div>
   </section>` : ''}
   <footer class="st-foot">頭沐 | CHIEFROM</footer>`;

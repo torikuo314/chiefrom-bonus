@@ -49,7 +49,7 @@ test('服務項目佔比：固定順序、其餘併為其他', () => {
 test('月報內容', () => {
   const s = buildStatement(rows, '甲甲', '2099-03', P, [], { cur, prev, radar: { sales: 60 }, praise: { mentions: 4, quotes: ['a', 'b', 'c', 'd'] } });
   assert.equal(s.sales, 160000);
-  assert.equal(s.progress.text, '已達第一門檻，距第二門檻還差 60,000 元，好可惜！');
+  assert.equal(s.progress.text, '已達第一門檻 🎉 距第二門檻還差 60,000 元，好可惜！');
   assert.equal(s.estimatedBonus, 4000);
   assert.equal(s.cards.length, 5);
   assert.equal(s.cards.find((c) => c.key === 'returnRate').note, '1 月服務 20 人次，有 11 人次在 60 天內回來');
