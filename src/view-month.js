@@ -44,16 +44,18 @@ function renderOverview(ctx) {
     $('#m-go-import').addEventListener('click', () => ctx.go('import'));
     return;
   }
+  const active = new Set(ctx.settings.staff.map((p) => p.name));
   const sorted = [...rows].sort((a, b) => effectiveSales(b) - effectiveSales(a));
   $('#m-table').innerHTML = `
     <thead><tr><th>養護師</th><th>業績</th><th>調整</th><th>客次</th><th>客數</th><th>客單價</th><th>試算獎金</th><th>確認狀態</th><th>確認方式／日期</th></tr></thead>
     <tbody>${sorted.map((r) => `<tr>
-      <td><a class="link" data-name="${esc(r['養護師'])}">${esc(r['養護師'])}</a></td>
+      <td><a class="link" data-name="${esc(r['養護師'])}">${esc(r['養護師'])}</a>${active.has(r['養護師']) ? '' : ` <span class="badge s-有異議">不在名單</span> <button class="mini" data-del="${esc(r['養護師'])}">刪除</button>`}</td>
       <td><b>${fmt(effectiveSales(r))}</b></td><td>${num(r['調整金額']) ? fmt(r['調整金額']) : ''}</td>
       <td>${fmt(r['筆數'])}</td><td>${fmt(r['客數'])}</td><td>${fmt(r['客單價'])}</td><td>${fmt(r['當月獎金'])}</td>
       <td><span class="badge s-${esc(r['確認狀態'] || '未確認')}">${esc(r['確認狀態'] || '未確認')}</span></td>
       <td>${esc([r['確認方式'], r['確認日期']].filter(Boolean).join(' '))}</td></tr>`).join('')}</tbody>`;
   $$('#m-table [data-name]').forEach((a) => a.addEventListener('click', () => ctx.go('detail', a.dataset.name)));
+  $$('#m-table [data-del]').forEach((b) => b.addEventListener('click', () => removeMonthly(ctx, b.dataset.del)));
 }
 
 function renderDetail(ctx) {
@@ -141,4 +143,20 @@ export async function recalcFrom(ctx, fromMonth) {
   if (!updates.length) return;
   await ctx.write([{ action: 'upsert', payload: { sheet: '月業績', keys: ['月份', '養護師'], rows: updates } }],
     { 動作: '重算獎金', 內容: `參數變更，重算 ${fromMonth} 起 ${updates.length} 筆月業績` });
+}
+
+/** 移除不在名單上的人（例如改名前的舊名字）的月業績。 */
+async function removeMonthly(ctx, name) {
+  if (ctx.isLocked(month)) return alert('此月所屬季度已結算鎖定，請先解鎖。');
+  const months = [...new Set(ctx.db['月業績'].filter((r) => r['養護師'] === name).map((r) => r['月份']))].sort();
+  const all = months.length > 1 && confirm(`「${name}」在 ${months.join('、')} 都有資料。\n按「確定」刪除全部月份，按「取消」只刪除 ${month}。`);
+  const targets = (all ? months : [month]).filter((m) => !ctx.isLocked(m));
+  if (!confirm(`確定刪除「${name}」${targets.join('、')} 的月業績？（交易明細不受影響）`)) return;
+  try {
+    await ctx.write(targets.map((m) => ({ action: 'replace', payload: { sheet: '月業績', match: { 月份: m, 養護師: name }, rows: [] } })),
+      { 動作: '刪除月業績', 內容: `${name}：${targets.join('、')}（不在名單）` });
+    const skipped = (all ? months : [month]).filter((m) => ctx.isLocked(m));
+    if (skipped.length) alert(`${skipped.join('、')} 所屬季度已結算鎖定，這幾個月沒有刪除。如需刪除請先到季結算解鎖。`);
+    renderOverview(ctx);
+  } catch (e) { alert('刪除失敗：' + e.message); }
 }

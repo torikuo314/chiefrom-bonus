@@ -26,7 +26,8 @@ export function show(_c, arg = {}) {
 
 function renderPicker() {
   $('#s-month').value = month;
-  const rows = ctx.db['月業績'].filter((r) => r['月份'] === month).sort((a, b) => a['養護師'].localeCompare(b['養護師'], 'zh-Hant'));
+  const active = new Set(ctx.settings.staff.map((p) => p.name));
+  const rows = ctx.db['月業績'].filter((r) => r['月份'] === month && active.has(r['養護師'])).sort((a, b) => a['養護師'].localeCompare(b['養護師'], 'zh-Hant'));
   $('#s-list').innerHTML = rows.length ? rows.map((r) => `
     <label class="check"><input type="checkbox" value="${esc(r['養護師'])}" checked> ${esc(r['養護師'])}
       <span class="badge s-${esc(r['確認狀態'] || '未確認')}">${esc(r['確認狀態'] || '未確認')}</span></label>`).join('')
