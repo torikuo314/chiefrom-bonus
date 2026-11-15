@@ -192,7 +192,7 @@ export function buildStatement(monthlyRows, name, month, params, advanceRows = [
       revisit: extra.revisit || 0, revisitDays: extra.revisitDays || 45, seed: tipSeed(name, month) }),
     praise: praise && praise.quotes.length ? { mentions: praise.mentions, quotes: praise.quotes.slice(0, 3) } : null,
   };
-  // 建議 4 則時留言最多 2 則，確保一頁 A4 放得下
-  if (result.praise && result.tips.length >= 4) result.praise.quotes = result.praise.quotes.slice(0, 2);
+  // 使用者決定：勾選的留言（最多 3 則）優先；留言 3 則時建議最多 3 則，確保一頁 A4 放得下
+  if (result.praise && result.praise.quotes.length >= 3 && result.tips.length > 3) result.tips = result.tips.slice(0, 3);
   return result;
 }

@@ -139,3 +139,11 @@ test('本季截至當月的累計預支', () => {
   assert.equal(buildStatement(rows, '甲甲', '2099-02', P, adv).quarterAdvance, 5000);
   assert.equal(buildStatement(rows, '甲甲', '2099-03', P).quarterAdvance, 0);
 });
+
+test('勾選 3 則留言時全部顯示，建議改為最多 3 則', () => {
+  const me = { avgTicket: 3700, customers: 27, returnRate: { value: 0.2, num: 5 }, productCustomerRate: 0.05, addonRate: { value: 0.1 } };
+  const s = buildStatement(rows, '甲甲', '2099-02', P, [], { cur: me, prev: {}, storeAvg: { returnRate: 0.4, productCustomerRate: 0.2, addonRate: 0.3 },
+    ranks: { productCustomers: 1 }, revisit: 10, praise: { mentions: 3, quotes: ['a', 'b', 'c'] } });
+  assert.equal(s.praise.quotes.length, 3);
+  assert.ok(s.tips.length <= 3);
+});
