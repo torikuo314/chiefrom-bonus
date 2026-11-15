@@ -219,31 +219,23 @@
       </div>
     </section>
     <section class="card">
-      <h2>季獎金明細</h2>
-      <p class="hint">給養護師的季獎金明細，完整列出各月獎金、預支扣抵與結轉，並附簽收欄。</p>
+      <h2>季度回顧＋季獎金明細 <span class="hint">每人一份兩頁，只給本人</span></h2>
+      <p class="hint">第 1 頁：本季業績與五項指標（本季 vs 上季），以及同事回饋、主管回饋、下季目標的手寫欄；第 2 頁：季獎金明細。面談時印出來填寫。</p>
       <div class="actions">
-        <button id="q-make" class="primary">產生季獎金明細</button>
+        <button id="q-make" class="primary">產生季度回顧＋季獎金明細</button>
         <button id="q-zip" hidden>全部下載（zip：PNG＋PDF）</button>
         <span id="q-make-hint" class="hint"></span>
       </div>
       <div id="q-results"></div>
     </section>
     <section class="card">
-      <h2>季度經營回顧 <span class="hint">面談用，與季獎金明細分開</span></h2>
-      <p class="hint">逐一選擇養護師，填寫主管回饋與下季目標、從本季三個月的問卷中勾選精選留言（建議 2–4 則），再一次產生全部人的回顧。</p>
-      <label class="inline">養護師 <select id="rv2-staff"></select></label>
-      <div id="rv2-form" hidden>
-        <h3>精選留言</h3>
-        <div id="rv2-quotes"></div>
-        <label>主管回饋（本季表現）<textarea id="rv2-feedback" rows="4"></textarea></label>
-        <label>下季目標<textarea id="rv2-goals" rows="3"></textarea></label>
-        <div class="actions"><button id="rv2-save">儲存這位</button><span id="rv2-msg" class="hint"></span></div>
-      </div>
+      <h2>同事回饋單 <span class="hint">印出來請同事手寫；上面沒有任何數字</span></h2>
+      <p class="hint">每位養護師一張，請其他同事填寫（可匿名）。收回後由主管整理，寫在季度回顧的「同事回饋」欄。</p>
       <div class="actions">
-        <button id="rv2-make" class="primary">產生季度經營回顧</button>
-        <button id="rv2-zip" hidden>全部下載（zip：PNG＋PDF）</button>
+        <button id="pf-make" class="primary">產生同事回饋單</button>
+        <button id="pf-zip" hidden>全部下載（zip）</button>
       </div>
-      <div id="rv2-results" class="q-results-grid"></div>
+      <div id="pf-results" class="q-results-grid"></div>
     </section>
     <div id="q-stage" aria-hidden="true"></div>
   </div>
