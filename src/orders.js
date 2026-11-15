@@ -153,10 +153,30 @@ export function markVoucherRedemptions(lines, payByOrder) {
   const byOrder = new Map();
   for (const l of lines) if (l.type === '商品') (byOrder.get(l.orderKey) || byOrder.set(l.orderKey, []).get(l.orderKey)).push(l);
   for (const [orderKey, items] of byOrder) {
-    let left = voucherAmount(payByOrder.get(orderKey));
-    for (const l of items.sort((a, b) => a.lineNo - b.lineNo)) {
-      if (left <= 0) break;
-      if (l.amount > 0 && l.amount <= left + 0.5) { l.type = '商品券兌換'; left -= l.amount; }
+    const voucher = voucherAmount(payByOrder.get(orderKey));
+    if (voucher <= 0) continue;
+    const paid = items.filter((l) => l.amount > 0).sort((a, b) => a.lineNo - b.lineNo);
+    // 優先找「金額加總剛好等於商品券」的品項組合（例如 2,300 元商品券兌換 2,300 元的商品）
+    const exact = exactSubset(paid, voucher);
+    if (exact) { exact.forEach((l) => { l.type = '商品券兌換'; }); continue; }
+    // 找不到剛好的組合：從金額大的開始扣
+    let left = voucher;
+    for (const l of [...paid].sort((a, b) => b.amount - a.amount)) {
+      if (l.amount <= left + 0.5) { l.type = '商品券兌換'; left -= l.amount; }
     }
   }
+}
+
+/** 找出金額加總等於 target 的品項組合（品項少，用簡單搜尋；優先品項數少的組合）。 */
+function exactSubset(items, target) {
+  const list = items.slice(0, 16);
+  let best = null;
+  const walk = (i, sum, picked) => {
+    if (Math.abs(sum - target) < 0.5) { if (!best || picked.length < best.length) best = [...picked]; return; }
+    if (i >= list.length || sum > target + 0.5 || (best && picked.length >= best.length)) return;
+    picked.push(list[i]); walk(i + 1, sum + list[i].amount, picked); picked.pop();
+    walk(i + 1, sum, picked);
+  };
+  walk(0, 0, []);
+  return best;
 }
