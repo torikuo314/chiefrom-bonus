@@ -72,6 +72,16 @@ function renderDetail(ctx) {
     ['第一級業績', fmt(r['第一級業績'])], ['第二級業績', fmt(r['第二級業績'])], ['試算獎金（後台）', fmt(r['當月獎金'])],
   ].map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');
 
+  // 商品明細：逐筆列出，方便和神美核對
+  const prods = ctx.db['交易明細'].filter((l) => l['月份'] === month && l['工作人員'] === current && (l['類別'] === '商品' || l['類別'] === '商品券兌換'))
+    .sort((x, y) => (x['訂單時間'] < y['訂單時間'] ? -1 : 1));
+  const counted = prods.filter((l) => l['類別'] === '商品' && l['職位'] !== '助理');
+  $('#d-products-body').innerHTML = prods.length ? `<table><thead><tr><th>日期</th><th>店家</th><th>訂單號碼</th><th class="l">品項</th><th>職位</th><th>業績</th><th>算進居家產品推薦</th></tr></thead><tbody>${
+    prods.map((l) => `<tr><td>${esc(String(l['訂單時間']).slice(0, 10))}</td><td>${esc(l['店家'])}</td><td>${esc(l['訂單號碼'])}</td><td class="l wrap">${esc(l['品項'])}</td><td>${esc(l['職位'])}</td><td>${fmt(l['業績'])}</td>
+      <td>${l['類別'] === '商品券兌換' ? '<span class="hint">否（商品券兌換）</span>' : l['職位'] === '助理' ? '<span class="hint">否（擔任助理）</span>' : '是'}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td>合計（算進的）</td><td colspan="4"></td><td>${fmt(counted.reduce((a, l) => a + num(l['業績']), 0))}</td><td></td></tr></tfoot></table>`
+    : '<p class="hint">本月沒有商品明細</p>';
+
   // 業績組成：依店家 × 職位 × 類別彙總神美訂單明細
   const lines = ctx.db['交易明細'].filter((l) => l['月份'] === month && l['工作人員'] === current);
   const groups = new Map();
