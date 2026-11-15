@@ -16,9 +16,11 @@ export function init(c) {
   $('#q-settle').addEventListener('click', settle);
   $('#q-unlock').addEventListener('click', unlock);
   $('#q-make').addEventListener('click', make);
-  $('#q-zip').addEventListener('click', () => downloadZip(results, fileName, `${quarter}_季度回顧與季獎金.zip`));
-  $('#pf-make').addEventListener('click', makePeer);
-  $('#pf-zip').addEventListener('click', () => downloadZip(peerResults, peerFile, `${quarter}_同事回饋單.zip`));
+  $('#q-zip').addEventListener('click', () => downloadZip(results, fileName, `${quarter}_季獎金明細.zip`));
+  $('#rv2-staff').addEventListener('change', renderReviewForm);
+  $('#rv2-save').addEventListener('click', saveReview);
+  $('#rv2-make').addEventListener('click', makeReviews);
+  $('#rv2-zip').addEventListener('click', () => downloadZip(reviewResults, reviewFile, `${quarter}_季度經營回顧.zip`));
 }
 
 export function show() {
@@ -40,7 +42,7 @@ const qLabel = (q) => {
   const ms = monthsOfQuarter(q).map((m) => Number(m.slice(5)));
   return `${y} 年第 ${k} 季（${ms[0]}–${ms[2]} 月）`;
 };
-const fileName = (name, ext) => `${quarter}_${name}_季度回顧與季獎金.${ext}`;
+const fileName = (name, ext) => `${quarter}_${name}_季獎金明細.${ext}`;
 
 function render() {
   qd = buildQuarter(ctx.db, quarter);
@@ -75,10 +77,15 @@ function render() {
   $('#q-settle').textContent = settled ? '重新結算並鎖定' : '結算並鎖定';
   $('#q-unlock').hidden = !qd.locked;
   $('#q-make').disabled = !qd.locked;
-  $('#q-make-hint').textContent = qd.locked ? '' : '結算並鎖定後才能產出。';
-  peerResults = [];
-  $('#pf-results').innerHTML = '';
-  $('#pf-zip').hidden = true;
+  $('#q-make-hint').textContent = qd.locked ? '' : '結算並鎖定後才能產出季獎金明細。';
+  // 季度經營回顧
+  const names = ctx.settings.staff.map((p) => p.name);
+  const cur = $('#rv2-staff').value;
+  $('#rv2-staff').innerHTML = names.map((n) => `<option ${n === cur ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  reviewResults = [];
+  $('#rv2-results').innerHTML = '';
+  $('#rv2-zip').hidden = true;
+  renderReviewForm();
 }
 const sum = (k) => qd.staff.reduce((a, s) => a + s[k], 0);
 
@@ -119,17 +126,19 @@ async function make() {
     await document.fonts.ready;
     for (const [i, s] of qd.staff.entries()) {
       btn.textContent = `產生中… ${i + 1}/${qd.staff.length}`;
-      const p1 = await renderPage('qrsheet', reviewHtml(reviewOf(s.name)));
-      const p2 = await renderPage('qsheet', sheetHtml(s));
-      results.push({ name: s.name, ...p1, pages: [p1, p2] });
+      const sheet = document.createElement('div');
+      sheet.className = 'sheet qsheet';
+      sheet.innerHTML = sheetHtml(s);
+      $('#q-stage').appendChild(sheet);
+      try { results.push({ name: s.name, ...(await capture(sheet)) }); } finally { sheet.remove(); }
     }
-    renderPreviews($('#q-results'), results, fileName, `${quarter} 季度回顧與季獎金`);
+    renderPreviews($('#q-results'), results, fileName, `${quarter} 季獎金明細`);
     $('#q-zip').hidden = results.length < 2;
   } catch (e) {
     alert('產生失敗：' + e.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = '產生季度回顧＋季獎金明細';
+    btn.textContent = '產生季獎金明細';
   }
 }
 
@@ -141,7 +150,7 @@ function sheetHtml(s) {
   const adjusted = s.months.some((m) => m.adjustment);
   const multi = qd.rules.length > 1;
   return `
-  <header class="st-head"><div class="st-brand">頭沐 | CHIEFROM</div><div class="st-doc">季獎金明細・第 2 頁</div></header>
+  <header class="st-head"><div class="st-brand">頭沐 | CHIEFROM</div><div class="st-doc">季獎金明細</div></header>
   <section class="q-title">
     <h1>${esc(s.name)}</h1>
     <p>${qLabel(quarter)}<span>發放日期 ${esc(v['發放日期'])}</span></p>
@@ -180,29 +189,92 @@ function sheetHtml(s) {
   <footer class="st-foot">頭沐 | CHIEFROM</footer>`;
 }
 
-// ---------------- 季度回顧（第 1 頁）＋同事回饋單 ----------------
-// 使用者決定：季度經營回顧與季獎金明細合併為一份兩頁文件（只給本人）；主管回饋、下季目標與同事回饋都印出來手寫。
-// 同事回饋單另外印，上面沒有任何數字。
-let peerResults = [];
-const peerFile = (name, ext) => `${quarter}_${name}_同事回饋單.${ext}`;
+// ---------------- 季度經營回顧（面談用） ----------------
+let reviewResults = [];
+const reviewFile = (name, ext) => `${quarter}_${name}_季度經營回顧.${ext}`;
+const splitNames = (v) => String(v || '').split(/[,，]/).map((x) => x.trim()).filter(Boolean);
 
-function reviewOf(name) {
-  const cur = quarterAggregate(monthsOfQuarter(quarter).map((m) => metricsOf(ctx, name, m)));
-  const prev = quarterAggregate(monthsOfQuarter(prevQuarter(quarter)).map((m) => metricsOf(ctx, name, m)));
-  return buildReview({ name, quarter, cur, prev });
+function reviewData(name) {
+  const months = monthsOfQuarter(quarter);
+  const pm = monthsOfQuarter(prevQuarter(quarter));
+  const cur = quarterAggregate(months.map((m) => metricsOf(ctx, name, m)));
+  const prev = quarterAggregate(pm.map((m) => metricsOf(ctx, name, m)));
+  const row = ctx.db['季結算'].find((r) => r['季度'] === quarter && r['養護師'] === name) || {};
+  const sv = ctx.db['問卷'].filter((r) => months.includes(r['月份']) && splitNames(r['對應養護師']).includes(name));
+  const quotes = sv.filter((r) => splitNames(r['季讚美勾選']).includes(name)).map((r) => r['讚美文字'] || r['第一題']).filter(Boolean);
+  return { months, cur, prev, row, sv, review: buildReview({ name, quarter, cur, prev, quotes, feedback: row['主管回饋'], goals: row['下季目標'] }) };
 }
 
-const lines = (n) => `<div class="qr-lines">${'<i></i>'.repeat(n)}</div>`;
-const face = (d) => (d ? `<span class="mr-face">${{ up: '😄', down: '😢', flat: '🙂' }[d.dir]}</span>` : '');
+function renderReviewForm() {
+  const name = $('#rv2-staff').value;
+  if (!name) { $('#rv2-form').hidden = true; return; }
+  const { row, sv } = reviewData(name);
+  $('#rv2-form').hidden = false;
+  $('#rv2-feedback').value = row['主管回饋'] || '';
+  $('#rv2-goals').value = row['下季目標'] || '';
+  $('#rv2-quotes').innerHTML = sv.length ? sv.map((r) => `<label class="check rv2-q"><input type="checkbox" value="${esc(r['編號'])}" ${splitNames(r['季讚美勾選']).includes(name) ? 'checked' : ''}${r['負評'] === '是' ? ' disabled' : ''}>
+      <span>${esc(r['讚美文字'] || r['第一題'])} <span class="hint">（${esc(r['月份'])}${r['負評'] === '是' ? '・負評' : ''}${splitNames(r['讚美勾選']).includes(name) ? '・月報已選' : ''}）</span></span></label>`).join('')
+    : '<p class="hint">本季沒有提到這位養護師的問卷。</p>';
+  $('#rv2-msg').textContent = '';
+}
+
+async function saveReview() {
+  const name = $('#rv2-staff').value;
+  const feedback = $('#rv2-feedback').value.trim();
+  const goals = $('#rv2-goals').value.trim();
+  const picked = new Set($$('#rv2-quotes input:checked').map((i) => i.value));
+  const surveyRows = $$('#rv2-quotes input').map((i) => {
+    const r = ctx.db['問卷'].find((x) => x['編號'] === i.value);
+    const set = new Set(splitNames(r['季讚美勾選']));
+    picked.has(i.value) ? set.add(name) : set.delete(name);
+    return { 編號: i.value, 季讚美勾選: [...set].join(', ') };
+  });
+  const ops = [{ action: 'upsert', payload: { sheet: '季結算', keys: ['季度', '養護師'], rows: [{ 季度: quarter, 養護師: name, 主管回饋: feedback, 下季目標: goals }] } }];
+  if (surveyRows.length) ops.push({ action: 'upsert', payload: { sheet: '問卷', keys: ['編號'], rows: surveyRows } });
+  try {
+    await ctx.write(ops, { 動作: '季度回顧', 內容: `${quarter} ${name}：更新主管回饋／下季目標；精選留言 ${picked.size} 則` });
+    $('#rv2-msg').textContent = '已儲存';
+  } catch (e) { alert('儲存失敗：' + e.message); }
+}
+
+async function makeReviews() {
+  const btn = $('#rv2-make');
+  const names = ctx.settings.staff.map((p) => p.name).filter((n) => reviewData(n).cur);
+  if (!names.length) return alert('本季沒有資料');
+  const missing = names.filter((n) => !reviewData(n).review.feedback);
+  if (missing.length && !confirm(`${missing.join('、')} 還沒有填主管回饋，仍要產生嗎？`)) return;
+  btn.disabled = true;
+  reviewResults = [];
+  try {
+    await document.fonts.ready;
+    for (const [i, name] of names.entries()) {
+      btn.textContent = `產生中… ${i + 1}/${names.length}`;
+      const sheet = document.createElement('div');
+      sheet.className = 'sheet qrsheet';
+      sheet.innerHTML = reviewHtml(reviewData(name).review);
+      $('#q-stage').appendChild(sheet);
+      try { reviewResults.push({ name, ...(await capture(sheet)) }); } finally { sheet.remove(); }
+    }
+    renderPreviews($('#rv2-results'), reviewResults, reviewFile, `${quarter} 季度經營回顧`);
+    $('#rv2-zip').hidden = reviewResults.length < 2;
+  } catch (e) {
+    alert('產生失敗：' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '產生季度經營回顧';
+  }
+}
+
+const nl2br = (t) => esc(t).replace(/\n/g, '<br>');
 
 function reviewHtml(r) {
   const [main, ...rest] = r.items;
   return `
-  <header class="st-head"><div class="st-brand">頭沐 | CHIEFROM</div><div class="st-doc">季度回顧・第 1 頁</div></header>
+  <header class="st-head"><div class="st-brand">頭沐 | CHIEFROM</div><div class="st-doc">季度經營回顧</div></header>
   <section class="mr-top">
     <div class="mr-who"><h1>${esc(r.name)}</h1><p>${qLabel(r.quarter)}</p></div>
     <div class="mr-sales"><span>${main.label}</span><b><small>NT$</small> ${esc(main.value)}</b>
-      <em class="qr-diff">${face(main.diff)}上季 ${main.prevValue === '—' ? '—' : `NT$ ${esc(main.prevValue)}`}</em></div>
+      ${main.diff ? `<em class="qr-diff"><span class="mr-face">${{ up: '😄', down: '😢', flat: '🙂' }[main.diff.dir]}</span>較上季${esc(main.diff.text)}</em>` : ''}</div>
   </section>
 
   <h2 class="q-h">本季 vs 上季</h2>
@@ -210,65 +282,23 @@ function reviewHtml(r) {
     ${rest.map((c) => `<div class="mr-card">
       <span>${c.label}</span>
       <b class="${c.pending ? 'pending' : ''}">${esc(c.value)}${c.unit && !c.pending && c.value !== '—' ? `<small> ${c.unit}</small>` : ''}</b>
-      <em class="mr-diff">${face(c.diff)}上季 ${esc(c.prevValue)}</em>
+      <em class="mr-diff">${c.diff ? `<span class="mr-face">${{ up: '😄', down: '😢', flat: '🙂' }[c.diff.dir]}</span>${esc(c.diff.text)}` : '&nbsp;'}</em>
+      <i>上季：${esc(c.prevValue)}${c.unit && c.prevValue !== '—' ? ` ${c.unit}` : ''}</i>
     </div>`).join('')}
   </section>
 
-  <section class="qr-box">
-    <h2>同事回饋 <span>（由主管整理同事回饋單後填寫）</span></h2>
-    ${lines(4)}
-  </section>
+  ${r.quotes.length ? `<section class="mr-praise">
+    <h2>本季客人有提到你喔！</h2>
+    <div class="mr-quotes">${r.quotes.map((q) => `<blockquote><i>“</i>${esc(q.length > 60 ? q.slice(0, 58) + '…' : q)}</blockquote>`).join('')}</div>
+  </section>` : ''}
+
   <section class="qr-box">
     <h2>主管回饋</h2>
-    ${lines(5)}
+    <p>${r.feedback ? nl2br(r.feedback) : '<span class="qr-empty">（面談時填寫）</span>'}</p>
   </section>
   <section class="qr-box qr-goal">
     <h2>下季目標</h2>
-    ${lines(4)}
+    <p>${r.goals ? nl2br(r.goals) : '<span class="qr-empty">（面談時填寫）</span>'}</p>
   </section>
-  <section class="qr-sign"><div>養護師<span></span></div><div>主管<span></span></div><div>日期<span></span></div></section>
   <footer class="st-foot">頭沐 | CHIEFROM</footer>`;
-}
-
-function peerHtml(name) {
-  return `
-  <header class="st-head"><div class="st-brand">頭沐 | CHIEFROM</div><div class="st-doc">同事回饋單</div></header>
-  <section class="pf-title">
-    <p>寫給</p><h1>${esc(name)}</h1><p>${qLabel(quarter)}</p>
-  </section>
-  <p class="pf-intro">謝謝你花一點時間，寫下對這位夥伴的觀察。內容會由主管整理後轉達，不會讓對方知道是誰寫的。</p>
-  <section class="qr-box"><h2>這一季，想謝謝她什麼？</h2>${lines(5)}</section>
-  <section class="qr-box"><h2>從她身上學到了什麼？</h2>${lines(5)}</section>
-  <section class="qr-box"><h2>想給她的一個小建議（選填）</h2>${lines(4)}</section>
-  <section class="qr-sign pf-sign"><div>填寫人（可不填）<span></span></div><div>日期<span></span></div></section>
-  <footer class="st-foot">頭沐 | CHIEFROM</footer>`;
-}
-
-async function renderPage(className, html) {
-  const sheet = document.createElement('div');
-  sheet.className = `sheet ${className}`;
-  sheet.innerHTML = html;
-  $('#q-stage').appendChild(sheet);
-  try { return await capture(sheet); } finally { sheet.remove(); }
-}
-
-async function makePeer() {
-  const btn = $('#pf-make');
-  btn.disabled = true;
-  peerResults = [];
-  try {
-    await document.fonts.ready;
-    const names = ctx.settings.staff.map((p) => p.name);
-    for (const [i, name] of names.entries()) {
-      btn.textContent = `產生中… ${i + 1}/${names.length}`;
-      peerResults.push({ name, ...(await renderPage('qrsheet', peerHtml(name))) });
-    }
-    renderPreviews($('#pf-results'), peerResults, peerFile, `${quarter} 同事回饋單`);
-    $('#pf-zip').hidden = peerResults.length < 2;
-  } catch (e) {
-    alert('產生失敗：' + e.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '產生同事回饋單';
-  }
 }
