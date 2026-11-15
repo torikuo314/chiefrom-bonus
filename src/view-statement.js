@@ -111,7 +111,7 @@ function sheetHtml(d) {
       <div class="mr-tags">${c.best ? '<span class="mr-best">🎉 個人新高</span>' : ''}</div>
       ${c.note ? `<i>${esc(c.note)}</i>` : ''}
       ${c.ranked ? `<div class="mr-rankbox ${c.rank ? 'top' : ''}">${c.rank
-        ? `<div class="mr-ring"><div class="mr-ring-num">${c.rank}<sup>${['', 'st', 'nd', 'rd'][c.rank]}</sup></div><div class="mr-ring-t">店內第${['', '一', '二', '三'][c.rank]}</div></div>`
+        ? `<div class="mr-ring${c.rank === 1 ? ' gold' : ''}"><div class="mr-ring-num">${c.rank}<sup>${['', 'st', 'nd', 'rd'][c.rank]}</sup></div><div class="mr-ring-t">店內第${['', '一', '二', '三'][c.rank]}</div></div>`
         : '<div class="mr-rank-text soft">還沒擠進前三名<br>加油！</div>'}</div>` : ''}
     </div>`).join('')}
   </section>
@@ -119,7 +119,7 @@ function sheetHtml(d) {
 
   ${d.tips.length ? `<section class="mr-tips">
     <h2>給你的小建議</h2>
-    <ul>${d.tips.map((t) => `<li>${t.icon === '🎉' ? '<span class="mr-tip-icon">🎉</span>' : '<span class="mr-tip-dot"></span>'}${esc(t.text)}</li>`).join('')}</ul>
+    <ul>${d.tips.map((t) => `<li>${['🎉', '🏆', '👏'].includes(t.icon) ? `<span class="mr-tip-icon">${t.icon}</span>` : '<span class="mr-tip-dot"></span>'}${esc(t.text)}</li>`).join('')}</ul>
   </section>` : ''}
 
   <section class="st-chart mr-trend">

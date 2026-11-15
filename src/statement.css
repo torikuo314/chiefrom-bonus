@@ -292,3 +292,8 @@
 .qcsheet .qr-box p { font-size: 13.5px; line-height: 1.6; }
 .qc-rules { margin-top: 10px; }
 .qc-rules p { font-size: 11px !important; margin: 0 0 2px !important; }
+
+/* 第一名：實心蜂蜜色徽章 */
+.mr-ring.gold { background: var(--accent); border-color: var(--accent) !important; box-shadow: 0 0 0 4px var(--accent-soft) !important; }
+.mr-ring.gold .mr-ring-num, .mr-ring.gold .mr-ring-t { color: #fff; }
+.mr-tips li:has(.mr-tip-icon) { font-weight: 600; color: #6b4e18; }

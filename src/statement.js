@@ -109,6 +109,21 @@ export const TIP_POOL = {
 const pickTip = (list, seed) => list[seed % list.length];
 export const tipSeed = (name = '', month = '') => [...name].reduce((a, c) => a + c.charCodeAt(0), 0) + Number(month.slice(5) || 0);
 
+const RANK_LABELS = { productSales: '居家產品推薦', addonSales: '加值服務' };
+const ZH = ['', '一', '二', '三'];
+/** 祝賀（最多一則）：點名項目與名次；第一名最優先，並可和個人新高合併。 */
+export function cheerOf(salesBest, ranks = {}) {
+  const firsts = Object.keys(RANK_LABELS).filter((k) => ranks[k] === 1).map((k) => RANK_LABELS[k]);
+  const others = Object.keys(RANK_LABELS).filter((k) => ranks[k] > 1).map((k) => `${RANK_LABELS[k]}店內第${ZH[ranks[k]]}名`);
+  if (firsts.length) {
+    const what = firsts.length > 1 ? `${firsts.join('和')}都是店內第一名` : `${firsts[0]}店內第一名`;
+    return { icon: '🏆', text: salesBest ? `本月業績創個人新高，${what.replace('店內第一名', '也是店內第一名').replace('都是店內第一名', '也都是店內第一名')}，太厲害了！` : `本月${what}，太厲害了！` };
+  }
+  if (salesBest) return { icon: '🎉', text: `本月業績創個人新高${others.length ? `，${others.join('、')}` : ''}，太棒了！` };
+  if (others.length) return { icon: '👏', text: `本月${others.join('、')}，做得很好！` };
+  return null;
+}
+
 /**
  * 給你的小建議（依表現自動產生）：恭喜最多 1 則＋實際建議最多 3 則。
  * me：本月指標；prev：上月指標；avg：店內平均（只用來判斷，不顯示）；progress：門檻進度
@@ -117,8 +132,7 @@ export const tipSeed = (name = '', month = '') => [...name].reduce((a, c) => a +
 export function buildTips({ me = {}, prev = {}, avg = {}, progress, salesBest = false, ranks = {}, revisit = 0, revisitDays = 45, seed = 0 }) {
   const tips = [];
   const low = (v, a) => v != null && a != null && a > 0 && v < a * 0.9;
-  const cheer = salesBest ? { icon: '🎉', text: '本月業績創個人新高，太棒了！' }
-    : Object.keys(ranks).length ? { icon: '👏', text: '本月有項目進入店內前三名，做得很好！' } : null;
+  const cheer = cheerOf(salesBest, ranks);
   // 使用者說明：客人由公司分配 → 建議只放養護師自己能做到的事，並以下個月為目標
   const goal = progress && progress.level < 2 && progress.toNext > 0 ? (progress.level === 0 ? '第一' : '第二') : null;
   if (goal && me.customers) {

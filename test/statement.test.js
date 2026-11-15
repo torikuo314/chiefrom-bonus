@@ -147,3 +147,13 @@ test('勾選 3 則留言時全部顯示，建議改為最多 3 則', () => {
   assert.equal(s.praise.quotes.length, 3);
   assert.ok(s.tips.length <= 3);
 });
+
+test('祝賀點名項目與名次，第一名最優先', async () => {
+  const { cheerOf } = await import('../src/statement.js');
+  assert.equal(cheerOf(false, { productSales: 1 }).text, '本月居家產品推薦店內第一名，太厲害了！');
+  assert.equal(cheerOf(false, { productSales: 1, addonSales: 1 }).text, '本月居家產品推薦和加值服務都是店內第一名，太厲害了！');
+  assert.equal(cheerOf(true, { productSales: 1 }).text, '本月業績創個人新高，居家產品推薦也是店內第一名，太厲害了！');
+  assert.equal(cheerOf(false, { addonSales: 2 }).text, '本月加值服務店內第二名，做得很好！');
+  assert.equal(cheerOf(true, { addonSales: 3 }).text, '本月業績創個人新高，加值服務店內第三名，太棒了！');
+  assert.equal(cheerOf(false, {}), null);
+});
