@@ -78,3 +78,25 @@ test('結算列與參數說明', () => {
   assert.deepEqual(rules[0].months, ['2099-04', '2099-05']);
   assert.equal(rules[1].T1, 150000);
 });
+
+test('季度經營回顧：三個月彙總與上季比較', async () => {
+  const { quarterAggregate, buildReview } = await import('../src/quarter.js');
+  const m = (sales, avgTicket, orders, customers, num, den, pc, ac) => ({ sales, avgTicket, orders, customers, returnRate: { value: num / den, num, den }, productCustomers: pc, addonCount: ac });
+  const cur = quarterAggregate([m(100000, 4000, 25, 20, 5, 10, 3, 4), m(120000, 5000, 24, 22, 6, 10, 4, 5), m(0, null, 0, 0, 0, 0, 0, 0)]);
+  assert.equal(cur.sales, 220000);
+  assert.equal(cur.avgTicket, Math.round((4000 * 25 + 5000 * 24) / 49));
+  assert.equal(cur.customers, 42);
+  assert.equal(cur.returnRate.value, 11 / 20);
+  assert.equal(cur.productCustomers, 7);
+  const prev = quarterAggregate([m(90000, 4000, 20, 18, 4, 10, 2, 6)]);
+  const r = buildReview({ name: '甲甲', quarter: '2099-Q2', cur, prev, quotes: ['a', 'b', 'c', 'd', 'e'], feedback: ' 表現穩定 ', goals: '回流率 60%' });
+  const by = Object.fromEntries(r.items.map((x) => [x.key, x]));
+  assert.equal(by.sales.diff.text, '多 130,000 元');
+  assert.equal(by.returnRate.value, '55%');
+  assert.equal(by.returnRate.diff.text, '多 7 人次回流');
+  assert.equal(by.addonCount.diff.text, '多 3 次');
+  assert.equal(r.quotes.length, 4);
+  assert.equal(r.feedback, '表現穩定');
+  assert.equal(quarterAggregate([null, { sales: 0 }]), null); // 沒資料
+  assert.equal(buildReview({ name: '甲甲', quarter: 'q', cur, prev: null }).items[0].diff, null);
+});

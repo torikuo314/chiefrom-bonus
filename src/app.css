@@ -77,3 +77,7 @@ tr.done td { color: var(--ink-soft); text-decoration: line-through; }
 
 .rv-staff { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
 .rv-staff h3 { margin: 6px 0; }
+
+.rv2-q { align-items: flex-start !important; margin: 6px 0; }
+.rv2-q input { margin-top: 5px !important; }
+#rv2-form textarea { width: 100%; }

@@ -228,6 +228,23 @@
       </div>
       <div id="q-results"></div>
     </section>
+    <section class="card">
+      <h2>季度經營回顧 <span class="hint">面談用，與季獎金明細分開</span></h2>
+      <p class="hint">逐一選擇養護師，填寫主管回饋與下季目標、從本季三個月的問卷中勾選精選留言（建議 2–4 則），再一次產生全部人的回顧。</p>
+      <label class="inline">養護師 <select id="rv2-staff"></select></label>
+      <div id="rv2-form" hidden>
+        <h3>精選留言</h3>
+        <div id="rv2-quotes"></div>
+        <label>主管回饋（本季表現）<textarea id="rv2-feedback" rows="4"></textarea></label>
+        <label>下季目標<textarea id="rv2-goals" rows="3"></textarea></label>
+        <div class="actions"><button id="rv2-save">儲存這位</button><span id="rv2-msg" class="hint"></span></div>
+      </div>
+      <div class="actions">
+        <button id="rv2-make" class="primary">產生季度經營回顧</button>
+        <button id="rv2-zip" hidden>全部下載（zip：PNG＋PDF）</button>
+      </div>
+      <div id="rv2-results" class="q-results-grid"></div>
+    </section>
     <div id="q-stage" aria-hidden="true"></div>
   </div>
 

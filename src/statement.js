@@ -23,7 +23,7 @@ export const CARD_DEFS = [
   { key: 'avgTicket', label: '客單價', kind: 'money', unit: '元', best: true },
   { key: 'customers', label: '服務客數', kind: 'count', unit: '人', best: true },
   { key: 'returnRate', label: '顧客回流率', kind: 'pct' },
-  { key: 'productCustomers', label: '居家保養推薦', kind: 'count', unit: '位客人', best: true },
+  { key: 'productCustomers', label: '居家產品推薦', kind: 'count', unit: '位客人', best: true },
   { key: 'addonCount', label: '加值服務', kind: 'count', unit: '次', best: true },
 ];
 
@@ -99,7 +99,7 @@ export const TIP_POOL = {
     { icon: '🤝', text: '客人稱讚你的時候，可以請她把你介紹給朋友！' },
   ],
   productLow: [
-    { icon: '🌿', text: '可以多和客人分享居家保養，幫客人把養護效果延續到家裡。' },
+    { icon: '🌿', text: '可以多和客人分享適合的居家產品，幫客人把養護效果延續到家裡。' },
     { icon: '🧴', text: '買過養髮液的客人快用完時關心一下，順便邀請回來做頭皮檢測。' },
   ],
   addonLow: [
@@ -124,7 +124,7 @@ export function buildTips({ me = {}, prev = {}, avg = {}, progress, salesBest = 
   const goal = progress && progress.level < 2 && progress.toNext > 0 ? (progress.level === 0 ? '第一' : '第二') : null;
   if (goal && me.customers) {
     const per = Math.ceil(progress.toNext / me.customers / 10) * 10;
-    tips.push({ icon: '🎯', text: `下個月每位客人平均多約 ${per.toLocaleString('en-US')} 元（例如多一項加值服務或居家保養），就有機會達到${goal}門檻！` });
+    tips.push({ icon: '🎯', text: `下個月每位客人平均多約 ${per.toLocaleString('en-US')} 元（例如多一項加值服務或居家產品），就有機會達到${goal}門檻！` });
   }
   if (revisit >= 3) tips.push({ icon: '📋', text: `你有 ${revisit} 位客人超過 ${revisitDays} 天還沒回來，可以主動關心、邀請她們預約！（名單可以向店長拿）` });
   const r = me.returnRate?.value, pr = prev.returnRate?.value;

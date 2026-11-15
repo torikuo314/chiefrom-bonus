@@ -254,3 +254,20 @@
 .mr-tips li { align-items: center !important; }
 /* 預估獎金的說明文字縮小（非重點） */
 .mrsheet .st-bonus-note { font-size: 10.5px !important; line-height: 1.4 !important; color: #8a8278 !important; }
+
+/* 季度經營回顧 */
+.qrsheet { padding: 40px 64px 30px; }
+.qr-diff { display: flex; align-items: center; justify-content: flex-end; gap: 6px; font-style: normal; font-weight: 600; font-size: 14px; margin-top: 4px; }
+.qr-diff .mr-face { font-size: 22px; }
+.qr-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.qr-grid .mr-card { grid-column: auto !important; padding: 12px 12px !important; min-height: 0 !important; }
+.qr-grid .mr-card b { font-size: 24px !important; }
+.qr-grid .mr-card b small { font-size: 11px !important; }
+.qr-grid .mr-card em.mr-diff { font-size: 12px !important; }
+.qr-grid .mr-card em.mr-diff .mr-face { font-size: 18px !important; }
+.qr-box { margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 18px; min-height: 120px; }
+.qr-goal { background: var(--accent-soft); border: 0; }
+.qr-box h2 { font-size: 15px !important; margin: 0 0 6px !important; }
+.qr-box p { margin: 0; font-size: 14.5px; line-height: 1.7; }
+.qr-empty { color: var(--ink-soft); font-size: 13px; }
+.q-results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; margin-top: 16px; }

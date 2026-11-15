@@ -107,3 +107,57 @@ export function settlementRows(qd, { today, payDate }) {
     實發金額: s.payout, 結轉下季: s.carryOut, 結算日期: today, 發放日期: payDate, 鎖定狀態: '已鎖定',
   }));
 }
+
+/**
+ * 季度經營回顧（面談用）：把三個月的指標彙總成一季，並和上一季比較。
+ * monthsMetrics：本季三個月的 metrics（metrics.js 格式）；prevMetrics：上季三個月。
+ * 客單價＝加權平均（依訂單數）；服務客數、居家產品推薦、加值服務＝加總；顧客回流率＝人次加總後計算。
+ */
+export function quarterAggregate(list) {
+  const ms = list.filter(Boolean);
+  const sum = (f) => ms.reduce((a, m) => a + (f(m) || 0), 0);
+  const orders = sum((m) => m.orders);
+  const den = sum((m) => m.returnRate?.den), num = sum((m) => m.returnRate?.num);
+  const anyData = ms.some((m) => m.sales);
+  if (!anyData) return null;
+  return {
+    sales: sum((m) => m.sales),
+    avgTicket: orders ? Math.round(sum((m) => (m.avgTicket || 0) * (m.orders || 0)) / orders) : null,
+    customers: sum((m) => m.customers),
+    returnRate: den ? { value: num / den, num, den, pending: false } : { value: null, pending: ms.every((m) => m.returnRate?.pending) },
+    productCustomers: sum((m) => m.productCustomers),
+    addonCount: sum((m) => m.addonCount),
+  };
+}
+
+export const REVIEW_DEFS = [
+  { key: 'sales', label: '本季業績', unit: '元' },
+  { key: 'avgTicket', label: '客單價', unit: '元' },
+  { key: 'customers', label: '服務客數', unit: '人次' },
+  { key: 'returnRate', label: '顧客回流率', kind: 'pct' },
+  { key: 'productCustomers', label: '居家產品推薦', unit: '位客人' },
+  { key: 'addonCount', label: '加值服務', unit: '次' },
+];
+
+export function buildReview({ name, quarter, cur, prev, quotes = [], feedback = '', goals = '' }) {
+  const fmt = (v) => Math.round(v).toLocaleString('en-US');
+  const val = (m) => (m && typeof m === 'object' ? m.value : m);
+  const items = REVIEW_DEFS.map((d) => {
+    const c = cur ? cur[d.key] : null, p = prev ? prev[d.key] : null;
+    const v = val(c), pv = val(p);
+    const pending = !!(c && typeof c === 'object' && c.pending);
+    const show = (x) => (x == null ? '—' : d.kind === 'pct' ? `${Math.round(x * 100)}%` : fmt(x));
+    let diff = null;
+    if (v != null && pv != null) {
+      const dd = d.kind === 'pct' ? Math.round((v - pv) * 100) : Math.round(v - pv);
+      const dir = dd > 0 ? 'up' : dd < 0 ? 'down' : 'flat';
+      if (d.kind === 'pct') { // 與月報一致：用回流人次表達
+        const n = (c?.num ?? 0) - (p?.num ?? 0);
+        const dir2 = n > 0 ? 'up' : n < 0 ? 'down' : 'flat';
+        diff = { dir: dir2, text: dir2 === 'flat' ? '與上季持平' : `${dir2 === 'up' ? '多' : '少'} ${Math.abs(n)} 人次回流` };
+      } else diff = { dir, text: dir === 'flat' ? '與上季持平' : `${dir === 'up' ? '多' : '少'} ${fmt(Math.abs(dd))} ${d.unit}` };
+    }
+    return { key: d.key, label: d.label, unit: d.kind === 'pct' ? '' : d.unit, value: pending ? '資料累積中' : show(v), prevValue: show(pv), diff, pending };
+  });
+  return { name, quarter, items, quotes: quotes.slice(0, 4), feedback: String(feedback || '').trim(), goals: String(goals || '').trim() };
+}
